@@ -1,5 +1,7 @@
 # Field technician assistant — implementation plan
 
+> **Status (29 Sep 2026): implemented.** This was the pre-build plan. The running system follows it except for the deltas in [docs/EVALUATION.md §4](docs/EVALUATION.md) and decisions D41–D52 in [docs/decision-log.md](docs/decision-log.md). The current system map is [docs/architecture.md](docs/architecture.md). Checklist evidence: [docs/validation.md](docs/validation.md).
+
 Status: **design and implementation instructions, not a runnable application**. Prepared for Zeel Rathi, 28 September 2026. The PDF asks for working software; this package plans that software and defines the evidence needed before it can be submitted. Do not describe planned tests as passing tests.
 
 ## 1. Outcome and scope

@@ -1,5 +1,7 @@
 # Acceptance tests
 
+> **Status (29 Sep 2026): implemented as executable tests.** R01–R17, S01–S25 and C01–C09 live in `backend/tests/test_scenarios.py` (named `test_R01_…`, `test_S05_…`), status pairs in `test_domain.py`, ownership/rollback/concurrency (S18, S20) in `test_service.py`, API/session/Origin (C04) in `test_api.py`, adapter continuation (C10) in `test_adapters.py`, browser smoke in `e2e/test_browser.py`. Results: [docs/validation.md](validation.md). Real-provider smoke: `make smoke` (pending a key).
+
 This document specifies tests to implement; it is not a claim that they have passed. Load a fresh database from the supplied `work_orders.json` for each independent test unless a sequence is explicitly stated. The current technician is `tech-ravi`. Assert persisted rows and structured results, not only assistant wording.
 
 ## Required assignment behavior

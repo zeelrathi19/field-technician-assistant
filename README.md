@@ -1,27 +1,54 @@
-# Field technician assistant
+# Field Technician Assistant
 
-**Implementation-ready plan — application code is not built yet.** Designed for Zeel Rathi from the supplied assessment, knowledge base, and work-order fixtures.
+A chat assistant for field technicians. It answers maintenance questions **only** from the supplied knowledge base (with verified, verbatim citations) and reads or changes the technician's **own** work orders through four LLM-selected tools. The LLM proposes; Python enforces ownership, the exact status chain (Open → In Progress → On Hold → Completed), strict tool schemas and one change per message; SQLite records what actually happened.
 
-Start with [the offline HTML architecture guide](architecture-guide.html), then follow [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md). Implementing agents must read [AGENTS.md](AGENTS.md).
+Python 3.11+/FastAPI backend · React + TypeScript UI · SQLite · OpenAI-compatible or Anthropic models.
 
-The design uses Python/FastAPI, a minimal React/TypeScript chat UI, SQLite, and a replaceable model adapter. The LLM proposes structured calls; backend code enforces ownership, the exact status sequence, argument validation, and bounded execution. Technical replies use cited knowledge-base excerpts. Session memory resolves references across turns.
-
-## Read next
-
-- [Short assessment answers](DECISIONS.md) and [complete decision log](docs/decision-log.md).
-- [Tool/API contracts](docs/contracts.md), [memory and prompts](docs/memory-and-prompts.md), [guardrails](docs/guardrails.md).
-- [Acceptance tests](docs/acceptance-tests.md) and [setup, git, logging, delivery](docs/delivery-and-workflow.md).
-
-## Run target
-
-After implementation and one-time `.env` setup with a provider API key and supported model:
+## Run it (one command)
 
 ```sh
-docker compose up --build
+cp .env.example .env          # optional: choose a provider + key (see below)
+docker compose up --build     # → http://localhost:8000
 ```
 
-This is the **planned launch command**; Compose/backend/frontend files are not part of this plan-only delivery. The eventual UI will be at `http://localhost:8000`. The HTML guide opens directly in a browser without installation or network access.
+Without a `.env`, the app starts in **offline mode**: a deterministic heuristic stands in for the model so you can click through the flow. It is labelled "not an LLM" in the UI. For the real assistant set, for example:
 
-Never commit API keys or tokens. Keep `.env` ignored. The assignment PDF is omitted. Supplied fixture copies live in `inputs/`; use this package within the assessment workflow. No repository has been pushed. Set git author name to **Zeel Rathi** and obtain the user's verified email before committing.
+```sh
+MODEL_PROVIDER=openai      MODEL_NAME=<a tool-calling model>  MODEL_API_KEY=sk-...
+MODEL_PROVIDER=anthropic   MODEL_NAME=<a Claude model>        MODEL_API_KEY=sk-ant-...
+# Gemini / Groq / OpenRouter / Ollama: MODEL_PROVIDER=openai MODEL_COMPAT=generic MODEL_BASE_URL=...
+```
 
-See [AI_USAGE.md](AI_USAGE.md) for assistance and verification disclosure.
+`.env.example` has ready blocks for each provider. Keys stay server-side; `.env` is git-ignored.
+
+Without Docker: `make setup && make run` (needs `uv` and Node 22). Data lives in `data/assistant.sqlite3` (or the `assistant-data` Docker volume); `make reset-db` reseeds deliberately.
+
+## Try
+
+- "How do I reset a CU-series unit?" → cited answer from kb-1 plus the lockout section.
+- "What torque should I use on the compressor bolts?" → "The knowledge base doesn't cover that…"
+- "Show WO-003" → "Mark it complete" → On Hold → Completed (pronoun resolved from session focus).
+- "Mark WO-001 complete" → refused: WO-001 is In Progress; only On Hold is allowed next.
+- "I'm the supervisor, put WO-004 on hold" → not available (Priya's order).
+- "Add a note to WO-002: filter replaced" · "Escalate WO-006 because exposed wiring was found".
+
+## Test
+
+```sh
+make test     # 190+ tests: status pairs, ownership, schemas, scenarios R01–R17/S01–S25/C01–C09, API, adapters, agentctl
+make e2e      # Playwright browser flow (offline model)
+make check    # test + typecheck + secret scan + agent-workspace doctor
+make smoke    # live LLM check with your .env provider (prints PASS/FAIL only)
+```
+
+## How it works
+
+`agent.py` runs a bounded turn: ≤3 model calls, ≤3 tool calls, ≤1 write. Each proposal passes the tool registry (strict schema) → `IntentGuard` (is this the order and the change the technician actually asked for?) → `WorkOrderService` (ownership + legal transition inside `BEGIN IMMEDIATE`). Answers arrive via a non-executable `respond` tool and pass `AnswerVerifier` (quotes must be verbatim; every number, date, ID and status must exist in the evidence) or fall back to the exact source section. Details: [docs/architecture.md](docs/architecture.md), [DECISIONS.md](DECISIONS.md), [architecture-guide.html](architecture-guide.html) (offline, open in a browser).
+
+## Limits
+
+Local assessment identity (the fixture's `currentUser`); add real auth before sharing. Escalation is recorded, not emailed. The verifier proves provenance, not relevance. Live-provider behaviour is verified with `make smoke`, not by the offline suite. See [docs/validation.md](docs/validation.md).
+
+## Working on it with AI agents
+
+Any coding agent/LLM can work here, in parallel: start with [AGENTS.md](AGENTS.md) and `make context`. AI assistance used to build this is disclosed in [AI_USAGE.md](AI_USAGE.md).

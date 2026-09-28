@@ -1,5 +1,7 @@
 # Memory, context window and prompt registry
 
+> **Status (29 Sep 2026): implemented** in `backend/app/memory.py`, `prompts/`. Deltas: focus is resolved deterministically from explicit IDs in the user's text *before* the model runs; a pending clarification lets a bare ID reply ("WO-003") complete a status request whose target was missing, but never a note/escalation payload or a bare "yes" (D46); the model also sees a compact roster of the technician's own orders (D44); history window = 8 messages / 12 000 chars; `EvidenceSelection` became the `respond` tool (D42).
+
 Implementation specification; no runtime behavior is claimed as tested. Policy and contracts are authoritative over prompt wording.
 
 ## Four kinds of state

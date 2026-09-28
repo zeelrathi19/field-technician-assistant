@@ -248,7 +248,8 @@ class ChatService:
                     counters.codes.append(parsed.code.value)
                     if call.name == RESPOND_TOOL:
                         return done(TurnOutcome("error", NO_VERIFIED_REPLY, cards=cards, verified=False))
-                    return done(TurnOutcome("refused", f"{parsed.message} Nothing was changed.", cards=cards,
+                    text = parsed.message if "Nothing was" in parsed.message else f"{parsed.message} Nothing was changed."
+                    return done(TurnOutcome("refused", text, cards=cards,
                                             action={"tool": call.name[:40], "code": parsed.code.value, "ok": False}))
                 if parsed.name == RESPOND_TOOL:
                     return done(self._answer(parsed, evidence, cards, message, new_state))
