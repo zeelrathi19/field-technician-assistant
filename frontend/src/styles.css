@@ -8,11 +8,11 @@
   --accent: #0f766e;
   --accent-ink: #ffffff;
   --user: #0f766e;
-  --ok: #15803d;
+  --ok: #166534;
   --ok-bg: #e7f6ec;
   --no: #b42318;
   --no-bg: #fdecea;
-  --warn: #9a6700;
+  --warn: #7a5200;
   --warn-bg: #fff4d6;
   --info-bg: #e8f1fb;
   --info: #1d4f91;
@@ -49,6 +49,8 @@ body { background: var(--bg); }
 button { font: inherit; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: 0.55; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.skip { position: absolute; left: 8px; top: -48px; z-index: 10; background: var(--accent); color: var(--accent-ink); padding: 8px 12px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+.skip:focus { top: 8px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .app { display: flex; flex-direction: column; height: 100%; }
