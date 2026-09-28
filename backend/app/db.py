@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS escalations (
 );
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, browser_id TEXT NOT NULL,
-  focus_id TEXT, candidates_json TEXT NOT NULL DEFAULT '[]',
+  focus_id TEXT, candidates_json TEXT NOT NULL DEFAULT '[]', pending_json TEXT,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS messages (
