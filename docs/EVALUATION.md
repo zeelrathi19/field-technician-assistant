@@ -49,7 +49,7 @@ Reviewer: implementing agent, before build. Inputs reviewed: every file in the p
 | E8 | `MODEL_CONTEXT_TOKENS` required, no default | Extra operator friction for no benefit at 2.5 KB KB | Optional; history window is message-count + byte budget |
 | E9 | CSRF/Origin/cookie + receipts endpoint + interrupted-request recovery all mandatory | Over-scoped for assessment | Kept, but minimal: HttpOnly browser cookie scopes sessions; Origin check on POST; idempotency table with interrupted marking at startup |
 | E10 | "Parallel subagents" only as prose | Not usable by other agents/providers | Agent-agnostic workspace: canonical `AGENTS.md`, pointer files for every major agent, `tools/agentctl.py` (atomic claims shared across worktrees, path-overlap checks, handoffs, context dump), task board in `.agents/` |
-| E11 | Git identity requires a verified email that was never supplied | Blocks commits | Commits use `Zeel Rathi <zeel.rathi@placeholder.invalid>`; `tools/set-git-email.sh` rewrites author/committer once the real email is known |
+| E11 | Git identity requires a verified email that was never supplied | Blocks commits | Commits use `Zeel Rathi <zeel.rathi@placeholder.invalid>`; `tools/set-git-email.sh` rewrites author/committer once the real email is known (done before first push) |
 | E12 | HTML guide describes a plan with "not implemented" banners | Misleading after build | Guide updated to the implemented design |
 
 ## 5. Things deliberately *not* changed

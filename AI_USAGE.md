@@ -25,4 +25,4 @@ Commits are authored as Zeel Rathi, with Claude as co-author in the commit trail
 
 The offline heuristic model is a test double, not evidence of LLM quality.
 
-Human review is still expected before submission. In particular, read `DECISIONS.md`, and confirm the commit email (`tools/set-git-email.sh`).
+Human review is still expected before submission, in particular of `DECISIONS.md`. Commit history uses Zeel's verified email.
