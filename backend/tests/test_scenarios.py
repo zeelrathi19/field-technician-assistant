@@ -1,4 +1,4 @@
-"""Acceptance scenarios (docs/acceptance-tests.md) through the full HTTP + agent stack.
+"""Acceptance scenarios (docs/testing.md) through the full HTTP + agent stack.
 
 `ScriptedModel` plays an *adversarial* model to prove the server enforces rules no
 matter what the model proposes. `offline` exercises the realistic happy paths.

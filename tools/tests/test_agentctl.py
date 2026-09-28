@@ -109,10 +109,17 @@ def test_check_paths_blocks_files_owned_by_other_live_claim(repo):
 def test_doctor_detects_pointer_drift(repo):
     run(repo, "doctor")
     (repo / "CLAUDE.md").write_text("hand edited")
-    assert "out of sync" in run(repo, "doctor", ok=False).stderr
+    assert "must contain exactly" in run(repo, "doctor", ok=False).stderr
 
 
-def test_pointers_carry_invariants(repo):
-    text = (repo / ".cursor" / "rules" / "agents.mdc").read_text()
-    assert text.startswith("---\ndescription:") and "alwaysApply: true" in text and "Open -> In Progress" in text
-    assert (repo / "CLAUDE.md").read_text().startswith("@AGENTS.md")
+def test_claude_pointer_is_a_single_import(repo):
+    assert (repo / "CLAUDE.md").read_text() == "@AGENTS.md\n"
+
+
+def test_adapters_add_and_remove_on_demand(repo):
+    run(repo, "adapters", "add", "gemini")
+    settings = json.loads((repo / ".gemini" / "settings.json").read_text())
+    assert settings["context"]["fileName"] == ["AGENTS.md"]
+    run(repo, "adapters", "remove", "gemini")
+    assert not (repo / ".gemini").exists()
+    assert "unknown tool" in run(repo, "adapters", "add", "nope", ok=False).stderr

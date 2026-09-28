@@ -1,16 +1,17 @@
-## Problem and resulting behavior
+## What changed and why
 
-Describe the user-visible change and requirement IDs.
+<!-- User-visible behaviour; task ID (T..); decision IDs (D..) if any. -->
 
-## Validation
+## Evidence
 
-List checks actually run and their results. Separate fake-provider and real-provider evidence.
+<!-- Exact commands and results. Keep offline/scripted results separate from live-provider results. -->
+- [ ] `make check`
+- [ ] `make e2e` (if UI, API or turn loop touched)
+- [ ] `make smoke` / `make smoke-codex` (if prompt or provider touched)
 
-## Material decisions or limits
+## Checklist
 
-Link relevant decision IDs; list remaining risks, configuration or migration changes.
-
-- [ ] Policy, ownership and status rules preserved.
-- [ ] No secrets, user content logs, runtime DB or assignment PDF staged.
-- [ ] Author and committer verified as Zeel Rathi using an authorized email.
-- [ ] Relevant docs and acceptance criteria updated.
+- [ ] The hard rules in AGENTS.md still hold (ownership, one-step status, strict tools, one write, verified answers)
+- [ ] Docs updated (`docs/`, README) if behaviour or contracts changed
+- [ ] No secrets, `.env`, databases or assignment PDF
+- [ ] Handoff written (`agentctl handoff`) and claim released

@@ -1,9 +1,9 @@
 ---
 id: T15
 title: Accessibility audit (WCAG 2.1 AA) and copy review
-status: todo
+status: done
 priority: P2
-owner: 
+owner: claude-opus
 depends_on: [T06]
 paths: [frontend/src/**]
 ---
@@ -12,6 +12,6 @@ paths: [frontend/src/**]
 Keyboard, contrast, screen-reader announcements, error copy.
 
 ## Acceptance
-- [ ] audit notes in docs/
-- [ ] fixes + e2e
-- [ ] `make check` passes
+- [x] audit notes in docs/
+- [x] fixes + e2e
+- [x] `make check` passes

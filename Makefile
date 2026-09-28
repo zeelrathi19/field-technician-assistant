@@ -68,7 +68,7 @@ lock: ## refresh lockfiles (uv.lock, requirements.lock, package-lock.json)
 	cd frontend && $(NPM) install --package-lock-only --no-audit --no-fund
 
 hooks: ## enable repo git hooks (secret scan + claim check + author check)
-	git config core.hooksPath .githooks
+	git config core.hooksPath tools/githooks
 
 context: ## one-shot situational awareness for any agent
 	python3 tools/agentctl.py context

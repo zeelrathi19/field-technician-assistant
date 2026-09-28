@@ -1,62 +1,98 @@
-# Architecture and system map
+# Architecture
 
-Implemented design (29 Sep 2026). For exact API/tool/limit names see `docs/contracts.md`; for the
-reasoning behind choices see `DECISIONS.md` and `docs/decision-log.md`.
+One FastAPI process serves the React build and a small JSON API, with one SQLite file. The LLM sits behind a provider-neutral interface and can only propose tool calls. Every proposal goes through the same checks before anything is read or written.
 
 ## Request flow
 
 ```mermaid
 flowchart LR
-  UI[React UI<br/>frontend/src] -->|POST /api/sessions/:id/messages<br/>request_id + message| API[api.py<br/>cookie scope, Origin, 413/422]
-  API --> CS[agent.py ChatService]
-  CS -->|1. reserve request_id| DB[(SQLite<br/>db.py)]
-  CS -->|2. resolve focus from user's IDs| MEM[memory.py]
-  CS -->|3. system+KB, history, server_context, user| LLM[llm/* adapter]
-  LLM -->|tool call proposal| DISP[tools.py ToolDispatcher<br/>registry + strict schema]
-  DISP --> GUARD[intent.py IntentGuard<br/>binding + consistency]
-  GUARD -->|read| SVC[service.py WorkOrderService<br/>ownership + transitions]
-  GUARD -->|write, BEGIN IMMEDIATE| SVC
+  UI[React UI<br/>frontend/src] -->|POST /api/sessions/:id/messages<br/>request_id + message| API[api.py<br/>cookie scope · Origin · size limits]
+  API --> CS[agent.py<br/>ChatService]
+  CS -->|1 reserve request_id| DB[(SQLite · db.py)]
+  CS -->|2 resolve focus from the user's own IDs| MEM[memory.py]
+  CS -->|3 system+KB · history · server_context · user| LLM[llm/* adapter]
+  LLM -->|one proposed call| DISP[tools.py<br/>registry + strict schema]
+  DISP -->|business tool| GUARD[intent.py<br/>IntentGuard]
+  GUARD -->|read| SVC[service.py<br/>WorkOrderService]
+  GUARD -->|write · BEGIN IMMEDIATE| SVC
   SVC --> DB
-  DISP -->|respond| VER[grounding.py AnswerVerifier<br/>quotes + provenance]
-  VER --> CS
+  DISP -->|respond| VER[grounding.py<br/>AnswerVerifier]
   SVC -->|receipt| CS
-  CS -->|4. persist messages + state + request result| DB
+  VER --> CS
+  CS -->|4 persist messages + state + receipt| DB
   CS --> UI
 ```
 
-Turn limits: ≤3 model calls (one transient retry counted), ≤3 tool calls, ≤1 mutation; a mutation ends
-the turn. The model finishes every non-mutating turn with the `respond` tool.
+## One turn
 
-## Where to change what
+1. **Reserve** the `(user, session, request_id)` row. An exact retry replays the stored response, the same ID with different text returns 409, and one still running returns 202. The session is locked for the whole turn, so a second message sent meanwhile gets 409.
+2. **Resolve focus deterministically** from the work-order IDs in the technician's text:
+   - one ID they own → it becomes the focus;
+   - one ID that is foreign or missing → focus cleared;
+   - several IDs → ambiguous;
+   - none → keep the previous focus.
+3. **Build context:**
+   - system prompt plus all five knowledge-base sections (the stable prefix);
+   - the last 8 messages / 12 000 chars of history, with receipts marked;
+   - a `<server_context>` block: technician, active order, IDs in this message, and the technician's own order list;
+   - the user's message.
+4. **Call the model** with `tool_choice` set to required. It must call exactly one of `get_work_order`, `update_status`, `add_note`, `escalate` or `respond`.
+5. **Handle the proposal:**
+   - unknown name or bad arguments → refused;
+   - a read → the order is checked for ownership, the result goes back to the model, and the loop continues;
+   - a write → `IntentGuard`, then `WorkOrderService` inside `BEGIN IMMEDIATE`, then a receipt, and **the turn ends**;
+   - `respond` → `AnswerVerifier` → rendered.
+6. **Budgets:** ≤3 model calls (one transient retry counted), ≤3 tool calls, ≤1 write. Plain text with no tool call fails closed.
+7. **Persist** the user message, the assistant message (with sources, cards and receipt), the session state and the stored response. For a write, this happens in the same transaction as the write itself.
 
-| Change | File(s) | Tests to extend |
+## Modules
+
+| File | Responsibility |
+|---|---|
+| `backend/app/domain.py` | Statuses, the three legal edges, error codes, `ToolResult`, seed validation |
+| `backend/app/db.py` | Schema, one-time seed with pinned hash, short explicit transactions, `interrupted` recovery at startup |
+| `backend/app/service.py` | The only code that touches work orders; ownership on every call |
+| `backend/app/tools.py` | Five tool schemas and their strict Pydantic validators (the same source for both) |
+| `backend/app/intent.py` | IntentGuard: is this the order and the change the technician asked for? |
+| `backend/app/grounding.py` | AnswerVerifier: quotes, numbers, IDs, asset codes, dates, per-order status claims, no claimed actions |
+| `backend/app/knowledge.py` | Knowledge sections `kb-1`…`kb-5`, hashes, verbatim-quote matching |
+| `backend/app/memory.py` | Session state, focus resolution, history window, server context |
+| `backend/app/agent.py` | The turn loop, idempotency, session locks, receipts |
+| `backend/app/llm/` | `ModelClient` protocol with adapters: `openai_compat`, `anthropic_native`, `codex_cli`, `offline`, `scripted` (tests) |
+| `backend/app/prompts/v1/system.txt` | The only prompt, loaded through a versioned registry |
+| `backend/app/api.py`, `main.py` | HTTP routes, browser-session cookie, Origin check, 64 KB body limit, SPA serving |
+| `frontend/src/` | `App.tsx` (session, retries), `components/` (messages, composer, work-order panel) |
+
+## Conversation memory
+
+| State | Stored in | Authority |
 |---|---|---|
-| Status rules / ownership | `backend/app/domain.py`, `service.py` | `tests/test_domain.py`, `test_service.py` |
-| Tool schemas / limits | `backend/app/tools.py`, `config.py` | `tests/test_tools.py`, adapter tests |
-| When a proposal counts as "asked for" | `backend/app/intent.py` | `tests/test_intent.py`, `test_scenarios.py` |
-| What counts as a grounded answer | `backend/app/grounding.py` | `tests/test_grounding.py`, scenarios S08–S13 |
-| Conversation focus / history window | `backend/app/memory.py` | scenarios R13, R14, S02–S04, S14, S15 |
-| Turn loop, budgets, idempotency | `backend/app/agent.py` | scenarios S16–S23, C05, C06 |
-| Prompt | `backend/app/prompts/v1/system.txt` | scenarios + `make smoke` |
-| New LLM provider | `backend/app/llm/<name>.py`, `llm/factory.py`, `config.py` | `tests/test_adapters.py` |
-| HTTP surface | `backend/app/api.py`, `main.py` | `tests/test_api.py` |
-| UI | `frontend/src/**` | `e2e/test_browser.py` |
-| Packaging | `Dockerfile`, `compose.yaml`, `Makefile` | `docker compose up --build` |
-| Agent workflow | `AGENTS.md`, `tools/agentctl.py`, `.agents/**` | `tools/tests/test_agentctl.py` |
+| Work orders, notes, escalations, audit | SQLite | The truth, re-read on every call |
+| Focus, candidate IDs, pending clarification | `sessions` | Only tells the assistant which order "it" means; never grants permission |
+| Transcript | `messages` | Model context only |
+| Request receipts | `requests` | Replay and conflict detection |
 
-## State
+"It" is resolved by the server, never by the model:
 
-| State | Where | Authority |
-|---|---|---|
-| Work orders, notes, escalations, audit | SQLite `work_orders`, `notes`, `escalations`, `audit_events` | Truth, re-read every call |
-| Session focus, candidates, pending clarification | `sessions` | Reference only |
-| Transcript | `messages` (display text + sources/cards/receipts) | History for context, never authority |
-| Idempotency | `requests` (processing/completed/interrupted + response JSON) | Replay/conflict |
-| Seed | `inputs/work_orders.json` (immutable; hash pinned in `schema_meta`) | Used once on empty DB |
-| Knowledge | `inputs/knowledge.md` → `kb-1..kb-5` | Only source for maintenance facts |
+- a mutation on a pronoun needs a focus set in an **earlier** turn;
+- a model that targets a different ID is rejected;
+- after a "which one?" clarification, a reply that is only an ID completes a status request whose target was missing, but never a note or escalation, and never on "yes".
 
 ## Providers
 
-`MODEL_PROVIDER=openai` (any OpenAI-compatible base URL: OpenAI, Gemini, Groq, OpenRouter, Together,
-DeepSeek, Mistral, Ollama, vLLM), `anthropic` (native), `offline` (deterministic heuristic, **not an LLM**,
-used for tests/e2e/keyless demo and labelled in the UI). All share `ModelClient.generate()`.
+| `MODEL_PROVIDER` | Adapter | Tool forcing |
+|---|---|---|
+| `openai` (+ any OpenAI-compatible `MODEL_BASE_URL`) | `openai_compat.py` | `tool_choice="required"`, `parallel_tool_calls=false`, `strict` (dropped for `MODEL_COMPAT=generic`) |
+| `anthropic` | `anthropic_native.py` | `tool_choice={type: any, disable_parallel_tool_use: true}` |
+| `codex` | `codex_cli.py` | `codex exec --sandbox read-only --output-schema` forcing `{tool, arguments_json}` |
+| `offline` | `offline.py` | Deterministic rules; labelled "not an LLM" |
+
+SDK retries are disabled, so the turn budget owns retries. Adding a provider means an adapter, a factory branch, a `Settings` literal and contract tests (see [development.md](development.md)).
+
+## Scaling path
+
+Today: one process, SQLite with WAL and `BEGIN IMMEDIATE` writes, per-session locks and a bounded model concurrency. That fits a small team on one host. Next steps, each only when needed (tasks are on the board):
+
+- real authentication (T13) before anyone else can reach the app;
+- Postgres with `SELECT … FOR UPDATE` when there are several instances or measured contention (T12);
+- streaming progress events (T14).

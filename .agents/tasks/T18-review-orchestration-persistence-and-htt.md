@@ -1,9 +1,9 @@
 ---
 id: T18
 title: Review orchestration persistence and HTTP reliability
-status: todo
+status: done
 priority: P2
-owner:
+owner: claude-opus
 depends_on: []
 paths: [backend/app/agent.py, backend/app/db.py, backend/app/api.py, backend/app/memory.py, backend/tests/test_api.py, backend/tests/test_review_runtime.py]
 ---
@@ -12,4 +12,4 @@ paths: [backend/app/agent.py, backend/app/db.py, backend/app/api.py, backend/app
 Fix verified turn lifecycle transaction context and HTTP flaws
 
 ## Acceptance
-- [ ] tests added and `make check` passes
+- [x] tests added and `make check` passes
