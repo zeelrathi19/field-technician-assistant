@@ -2,7 +2,7 @@
 
 A chat assistant for field technicians. It answers maintenance questions **only** from the supplied knowledge base (with verified, verbatim citations) and reads or changes the technician's **own** work orders through four LLM-selected tools. The LLM proposes; Python enforces ownership, the exact status chain (Open → In Progress → On Hold → Completed), strict tool schemas and one change per message; SQLite records what actually happened.
 
-Python 3.11+/FastAPI backend · React + TypeScript UI · SQLite · OpenAI-compatible or Anthropic models.
+Python 3.10+/FastAPI backend · React + TypeScript UI · SQLite · OpenAI-compatible or Anthropic models.
 
 ## Run it (one command)
 
