@@ -16,6 +16,7 @@ These are the results the commands actually produced. Nothing below is a planned
 | Live-pipeline smoke script | `uv run python scripts/smoke.py --allow-offline` | 9/9 (offline model; validates the script, **not** an LLM) |
 | HTML guide | Playwright: clicked all 7 scenarios at 1280 px and 390 px | no JS errors, no horizontal overflow; 20 unique ids; all internal/local links resolve |
 | Fixture integrity | `sha256sum inputs/*` vs `docs/source-manifest.json` | identical |
+| Same suite on the user's machine (Linux VM, aarch64, Python 3.10.12, fresh `uv sync`) | `uv run pytest` + `pytest ../tools/tests` | **206 passed**, **9 passed** |
 | Email-rewrite script | `tools/set-git-email.sh` on a throwaway clone | 13 commits rewritten, merges preserved |
 
 ## Requirement coverage (R1–R11)
