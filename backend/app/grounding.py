@@ -49,6 +49,26 @@ NUM_RE = re.compile(r"(?<![\w-])\d+(?:[.,]\d+)?(?![\w-])")
 # Answers must be plain text: no raw HTML/markdown links/images reach the UI.
 MARKUP_RE = re.compile(r"<\s*/?\s*[a-z][^>]*>|!\[|\]\(", re.I)
 SAFETY_COMPANION = {"kb-1": "kb-2", "kb-5": "kb-2"}
+# Asset / model codes such as CU-4400 or AF-200 (digits after '-' are not caught by NUM_RE).
+ASSET_RE = re.compile(r"\b(?!WO-)[A-Z]{2,}-\d{2,}\b")
+# Status claims ("WO-003 is done") — synonyms map to canonical statuses.
+STATUS_WORDS = {
+    "Completed": r"complet(?:e|ed)|done|finished|closed|resolved",
+    "On Hold": r"on[- ]hold|paused",
+    "In Progress": r"in[- ]progress|started|underway",
+    "Open": r"open|reopened",
+}
+_STATUS_ALT = "|".join(f"(?P<s{i}>{rx})" for i, rx in enumerate(STATUS_WORDS.values()))
+STATUS_CLAIM = re.compile(
+    r"\b(?:is|are|was|were|has been|have been|now|already|marked(?: as)?|set to|moved to|changed to|updated to)"
+    r"\s+(?:now\s+|already\s+|currently\s+|still\s+|been\s+)?(?:status\s+)?(?:" + _STATUS_ALT + r")\b", re.I)
+HEDGE = re.compile(r"\b(next|allowed|only|can|could|would|should|cannot|can't|must|if|once|after|before|until|to be)\b", re.I)
+# The respond tool never follows a write (a write ends the turn), so any claim of having acted is false.
+ACTION_CLAIM = re.compile(
+    r"\b(?:i|we)(?:'ve| have)?\s+(?:just\s+|now\s+|successfully\s+|already\s+)?"
+    r"(?:marked|updated|changed|set|moved|added|logged|recorded|escalated|flagged|completed|closed|started|put|saved)\b"
+    r"|\bhas been (?:marked|updated|changed|set|moved|escalated|flagged|added|logged|recorded|saved)\b"
+    r"|\b(?:note|escalation|status change) (?:has been |was )?(?:added|recorded|logged|created|saved|applied)\b", re.I)
 
 
 @dataclass
@@ -107,8 +127,42 @@ class AnswerVerifier:
                 out.append(src)
         return out
 
-    def _claims_ok(self, text: str, allowed: str) -> list[str]:
+    @staticmethod
+    def _known_statuses(evidence: "Evidence | None") -> dict[str, str]:
+        known: dict[str, str] = {}
+        if evidence is None:
+            return known
+        for row in [*evidence.roster, *evidence.tool_data]:  # tool results (fresher) override the roster
+            if isinstance(row, dict) and row.get("id") and row.get("status"):
+                known[row["id"]] = row["status"]
+        return known
+
+    def _status_claims(self, text: str, evidence: "Evidence | None") -> list[str]:
+        known = self._known_statuses(evidence)
         issues = []
+        all_ids = ID_RE.findall(text)
+        for sentence in re.split(r"(?<=[.!?;\n])\s+", text):
+            ids = ID_RE.findall(sentence) or (all_ids[:1] if len(set(all_ids)) == 1 else [])
+            if len(set(ids)) != 1 or ids[0] not in known:
+                continue
+            wid = ids[0]
+            for m in STATUS_CLAIM.finditer(sentence):
+                prefix = sentence[max(0, m.start() - 30):m.start()]
+                if HEDGE.search(prefix):
+                    continue  # "the next allowed status is Completed" is not a claim about now
+                claimed = next(name for i, name in enumerate(STATUS_WORDS) if m.group(f"s{i}"))
+                if claimed != known[wid]:
+                    issues.append(f"status claim {wid}={claimed} contradicts {known[wid]}")
+        return issues
+
+    def _claims_ok(self, text: str, allowed: str, evidence: "Evidence | None" = None) -> list[str]:
+        issues = []
+        for code in set(ASSET_RE.findall(text)):
+            if code not in allowed:
+                issues.append(f"unknown asset code {code}")
+        issues += self._status_claims(text, evidence)
+        if ACTION_CLAIM.search(text):
+            issues.append("claims an action that was not performed in this turn")
         allowed_nums = _numbers(allowed)
         for n in _numbers(text):
             if n not in allowed_nums:
@@ -161,7 +215,7 @@ class AnswerVerifier:
 
         if reply.kind in ("clarify", "refuse"):
             text = reply.text or GENERIC_CLARIFY
-            problems = self._claims_ok(text, allowed)
+            problems = self._claims_ok(text, allowed, evidence)
             if problems:
                 return VerifiedReply(reply.kind, GENERIC_CLARIFY if reply.kind == "clarify" else CAPABILITIES,
                                      issues=problems)
@@ -177,7 +231,7 @@ class AnswerVerifier:
             if len(text) <= 280 and not _numbers(text) and not DOMAIN_TERMS.search(text) and not MARKUP_RE.search(text):
                 return VerifiedReply("smalltalk", text or CAPABILITIES)
             return VerifiedReply("unsupported", ABSTAIN, [], missing, ["answer without evidence"])
-        problems = self._claims_ok(text, allowed_facts)
+        problems = self._claims_ok(text, allowed_facts, evidence)
         if problems or issues or not text:
             return self._fallback(cited_ids_any, missing, issues + problems + ([] if text else ["empty answer"]))
         return VerifiedReply("partial" if missing else "answer", text, self._sources(cited), missing)

@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, RefObject } from "react";
 import type { SessionState } from "../types";
 
 interface Props {
@@ -8,9 +8,10 @@ interface Props {
   disabled: boolean;
   maxChars: number;
   context: SessionState | null;
+  inputRef?: RefObject<HTMLTextAreaElement | null>;
 }
 
-export function Composer({ value, onChange, onSend, disabled, maxChars, context }: Props) {
+export function Composer({ value, onChange, onSend, disabled, maxChars, context, inputRef }: Props) {
   const text = value.trim();
   const over = value.length > maxChars;
   const submit = () => {
@@ -48,6 +49,7 @@ export function Composer({ value, onChange, onSend, disabled, maxChars, context 
       <div className="composer-row">
         <textarea
           id="msg"
+          ref={inputRef}
           rows={2}
           value={value}
           placeholder="Ask a question or give an instruction… (Enter to send, Shift+Enter for a new line)"

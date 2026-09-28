@@ -1,28 +1,23 @@
 # AI assistance disclosure
 
-**Planning (28 Sep 2026).** Codex read the assignment and fixtures and produced the planning package: the plan, contracts, guardrails, acceptance list and HTML guide. Three Codex subagents drafted parts of it, and an integrating agent reconciled them.
+| When | Tool | What it did |
+|---|---|---|
+| 28 Sep 2026 | Codex (with subagents) | Read the assignment and fixtures. Wrote the pre-build planning package: plan, contracts, guardrails, acceptance list, HTML guide (now in `docs/archive/`). |
+| 29 Sep 2026 | Claude (Anthropic, Cowork) | Evaluated the plan (`docs/archive/plan-evaluation.md`). Built the backend, UI, tests, Docker files and agent-coordination tooling. Published to a private GitHub repo. |
+| 29 Sep 2026 | Codex agents | Opened four review tasks (T15, T17–T19) on the shared board, then stopped before making changes. |
+| 29 Sep 2026 | Claude | Took over those tasks: found and fixed seven guardrail/runtime flaws with regression tests (D53–D56), added the Codex CLI provider (D57), a WCAG 2.1 AA audit, and the documentation overhaul (D58). |
 
-**Implementation (29 Sep 2026).** Claude (Anthropic, Cowork) did the following:
+Three design points differ from the plan: consistency checks instead of a command grammar, verified quoting instead of verbatim-only answers, and a multi-provider model layer. They are explained in `docs/decision-log.md`.
 
-- evaluated the plan against the fixtures (`docs/EVALUATION.md`)
-- changed three design points: consistency checks instead of a regex command grammar, verified quoting instead of verbatim-only answers, and a multi-provider model layer
-- wrote the backend, UI, tests, Docker files, agent-coordination tooling and documentation.
+Commits are authored as Zeel Rathi. AI co-authorship is recorded in commit trailers.
 
-Commits are authored as Zeel Rathi, with Claude as co-author in the commit trailers.
+**Verification actually performed** (details in `docs/validation.md`):
+- the automated suites;
+- Playwright e2e with an axe accessibility audit;
+- TypeScript typecheck and build;
+- a secret scan of the full history;
+- a green GitHub Actions run, including `docker compose build`.
 
-**Verification actually performed.** The exact commands and results are in `docs/validation.md`. Summary:
+**Not verified:** behaviour with a live LLM, because no provider key or Codex CLI was available where the build ran. Run `make smoke` or `make smoke-codex`. The offline heuristic model is a test double, not evidence of LLM quality.
 
-- Automated suite: unit, scenario, API, adapter wire-shape and agentctl tests.
-- Playwright browser e2e against the running app.
-- Frontend typecheck and build.
-- Secret scan.
-- A reproduction of the container layout, installed from the hash-locked requirements and served.
-
-**Not verified here:**
-
-- **`docker compose build`:** the build sandbox cannot reach Docker Hub.
-- **Live LLM behaviour:** no provider key was available. The adapters were checked against recorded request/response shapes only. Run `make smoke` with a key to verify live behaviour.
-
-The offline heuristic model is a test double, not evidence of LLM quality.
-
-Human review is still expected before submission, in particular of `DECISIONS.md`. Commit history uses Zeel's verified email.
+Human review is still expected before submission, especially of `DECISIONS.md`.

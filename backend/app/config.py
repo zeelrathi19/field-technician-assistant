@@ -21,16 +21,17 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(REPO_ROOT / ".env", ".env"), env_file_encoding="utf-8", extra="ignore")
 
     # Model provider
-    model_provider: Literal["openai", "anthropic", "offline"] = "offline"
+    model_provider: Literal["openai", "anthropic", "codex", "offline"] = "offline"
     model_name: str = ""
     model_api_key: SecretStr = SecretStr("")
     model_base_url: str = ""  # OpenAI-compatible endpoints (Gemini, Groq, OpenRouter, Ollama, vLLM ...)
     model_compat: Literal["openai", "generic"] = "openai"  # generic drops strict/parallel params
     model_temperature: float | None = None
+    codex_bin: str = "codex"  # MODEL_PROVIDER=codex: local Codex CLI signed in with ChatGPT (no API key)
 
     # Budgets (engineering defaults; bounded)
-    model_timeout_seconds: float = Field(30, gt=0, le=120)
-    turn_timeout_seconds: float = Field(60, gt=0, le=300)
+    model_timeout_seconds: float = Field(30, gt=0, le=300)
+    turn_timeout_seconds: float = Field(60, gt=0, le=900)
     max_model_calls_per_turn: int = Field(3, ge=1, le=4)
     max_tool_calls_per_turn: int = Field(3, ge=1, le=4)
     max_output_tokens: int = Field(1024, ge=256, le=8192)

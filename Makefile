@@ -4,7 +4,7 @@ UV ?= uv
 NPM ?= npm
 PORT ?= 8000
 
-.PHONY: help setup build-ui run dev test e2e typecheck check secrets smoke up down logs reset-db lock hooks context board
+.PHONY: help setup build-ui run run-codex smoke-codex dev test e2e typecheck check secrets smoke up down logs reset-db lock hooks context board
 
 help: ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -18,6 +18,14 @@ build-ui: ## build the React UI into frontend/dist
 
 run: build-ui ## run API + built UI locally on :8000 (no Docker)
 	cd backend && $(UV) run uvicorn --factory app.main:app_factory --host 127.0.0.1 --port $(PORT)
+
+CODEX_ENV = MODEL_PROVIDER=codex MODEL_TIMEOUT_SECONDS=180 TURN_TIMEOUT_SECONDS=540
+
+run-codex: build-ui ## run locally with your signed-in Codex CLI as the model (no API key; not in Docker)
+	cd backend && $(CODEX_ENV) $(UV) run uvicorn --factory app.main:app_factory --host 127.0.0.1 --port $(PORT)
+
+smoke-codex: ## live smoke test through your Codex CLI login
+	cd backend && $(CODEX_ENV) $(UV) run python scripts/smoke.py
 
 dev: ## backend with reload + Vite dev server (:5173, proxies /api)
 	(cd backend && $(UV) run uvicorn --factory app.main:app_factory --reload --port $(PORT)) & \
@@ -60,7 +68,7 @@ lock: ## refresh lockfiles (uv.lock, requirements.lock, package-lock.json)
 	cd frontend && $(NPM) install --package-lock-only --no-audit --no-fund
 
 hooks: ## enable repo git hooks (secret scan + claim check + author check)
-	git config core.hooksPath .githooks
+	git config core.hooksPath tools/githooks
 
 context: ## one-shot situational awareness for any agent
 	python3 tools/agentctl.py context

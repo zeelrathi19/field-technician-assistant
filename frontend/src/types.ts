@@ -1,4 +1,4 @@
-// Mirrors backend/app/agent.py ChatService responses. Keep in sync with docs/contracts.md.
+// Mirrors backend/app/agent.py ChatService responses. Keep in sync with docs/api.md.
 export type Outcome = "answered" | "acted" | "refused" | "clarification" | "error";
 
 export interface KnowledgeSource {

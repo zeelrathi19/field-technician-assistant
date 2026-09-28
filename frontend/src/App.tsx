@@ -49,6 +49,7 @@ export default function App() {
   const [bootError, setBootError] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const refreshRoster = useCallback(() => {
     api.roster().then((r) => setRoster(r.work_orders)).catch(() => undefined);
@@ -115,6 +116,8 @@ export default function App() {
         setDraft(text); // never lose the technician's words
       } finally {
         setPending(false);
+        // Return focus to the message box so keyboard users can keep going.
+        requestAnimationFrame(() => inputRef.current?.focus());
       }
     },
     [sessionId, pending, refreshRoster],
@@ -132,6 +135,9 @@ export default function App() {
 
   return (
     <div className="app">
+      <a className="skip" href="#msg" onClick={(e) => { e.preventDefault(); inputRef.current?.focus(); }}>
+        Skip to message box
+      </a>
       <header className="topbar">
         <div className="brand">
           <span className="logo" aria-hidden>
@@ -159,7 +165,7 @@ export default function App() {
 
       <div className="layout">
         <main className="chat" aria-label="Conversation">
-          <div className="messages" role="log" aria-live="polite" aria-relevant="additions">
+          <div className="messages" role="log" aria-live="polite" aria-relevant="additions" aria-busy={pending}>
             {messages.length === 0 && (
               <div className="empty">
                 <h2>Ask about maintenance or your work orders</h2>
@@ -180,7 +186,7 @@ export default function App() {
               <MessageView key={m.id} message={m} />
             ))}
             {pending && (
-              <div className="msg assistant thinking" aria-label="Assistant is working">
+              <div className="msg assistant thinking" role="status" aria-label="Assistant is working">
                 <span className="dot" />
                 <span className="dot" />
                 <span className="dot" />
@@ -208,6 +214,7 @@ export default function App() {
             disabled={pending || !sessionId}
             maxChars={meta?.limits.max_message_chars ?? 8000}
             context={state}
+            inputRef={inputRef}
           />
         </main>
 

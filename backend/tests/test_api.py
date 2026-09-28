@@ -69,13 +69,13 @@ def test_receipt_endpoint(tmp_path):
 
 def test_busy_session_returns_409(tmp_path):
     h = Harness(tmp_path)
-    lock = h.app.state.chat._session_lock(h.sid)
-    lock.acquire()
+    chat = h.app.state.chat
+    assert chat._try_lock_session(h.sid)
     try:
         r = h.post("hi")
         assert r.status_code == 409
     finally:
-        lock.release()
+        chat._unlock_session(h.sid)
     assert h.post("hi").status_code == 200  # reservation was released
 
 

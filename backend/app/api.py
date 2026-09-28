@@ -52,7 +52,7 @@ def health(request: Request) -> dict[str, Any]:
     except Exception:
         db_ok = False
     return {"ok": db_ok, "database": db_ok, "knowledge_sections": len(chat.kb.sections),
-            "model_configured": True}
+            "provider": chat.model.provider}
 
 
 @router.get("/meta")

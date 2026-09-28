@@ -22,6 +22,41 @@ from .prompts.registry import PromptRegistry
 
 log = logging.getLogger("fta.app")
 
+MAX_BODY_BYTES = 64 * 1024  # a chat message is <= 8000 chars; anything bigger is refused unread
+
+
+class BodyLimitMiddleware:
+    """Pure-ASGI guard: rejects oversized bodies by Content-Length and while streaming."""
+
+    def __init__(self, app, limit: int = MAX_BODY_BYTES):
+        self.app, self.limit = app, limit
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        declared = dict(scope.get("headers") or []).get(b"content-length")
+        if declared is not None and declared.isdigit() and int(declared) > self.limit:
+            return await JSONResponse({"detail": "Request body too large."}, status_code=413)(scope, receive, send)
+        seen = 0
+
+        async def limited_receive():
+            nonlocal seen
+            message = await receive()
+            if message["type"] == "http.request":
+                seen += len(message.get("body", b""))
+                if seen > self.limit:
+                    raise _TooLarge()
+            return message
+
+        try:
+            await self.app(scope, limited_receive, send)
+        except _TooLarge:
+            await JSONResponse({"detail": "Request body too large."}, status_code=413)(scope, receive, send)
+
+
+class _TooLarge(Exception):
+    pass
+
 
 def create_app(settings: Settings | None = None, model: ModelClient | None = None) -> FastAPI:
     settings = settings or Settings()
@@ -38,6 +73,7 @@ def create_app(settings: Settings | None = None, model: ModelClient | None = Non
     app.state.settings = settings
     app.state.chat = chat
     app.include_router(router)
+    app.add_middleware(BodyLimitMiddleware)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError) -> JSONResponse:
@@ -49,7 +85,9 @@ def create_app(settings: Settings | None = None, model: ModelClient | None = Non
         app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
 
         @app.get("/{path:path}", include_in_schema=False)
-        def spa(path: str) -> FileResponse:
+        def spa(path: str):
+            if path == "api" or path.startswith("api/"):
+                return JSONResponse({"detail": "Not found."}, status_code=404)  # never mask API typos with the SPA
             candidate = (dist / path).resolve()
             if path and candidate.is_file() and dist.resolve() in candidate.parents:
                 return FileResponse(candidate)

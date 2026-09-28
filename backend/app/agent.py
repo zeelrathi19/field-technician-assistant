@@ -129,9 +129,19 @@ class ChatService:
         return {"request_id": request_id, "session_id": session_id, "outcome": "error",
                 "code": ErrorCode.INTERNAL_ERROR.value, "message": INTERRUPTED, "retryable": False}
 
-    def _session_lock(self, session_id: str) -> threading.Lock:
+    def _try_lock_session(self, session_id: str) -> bool:
+        """Acquire and (later) drop per-session locks under one guard, so the dict never
+        grows without bound and no two turns can hold different locks for one session."""
         with self._locks_guard:
-            return self._locks.setdefault(session_id, threading.Lock())
+            lock = self._locks.setdefault(session_id, threading.Lock())
+            return lock.acquire(blocking=False)
+
+    def _unlock_session(self, session_id: str) -> None:
+        with self._locks_guard:
+            lock = self._locks.get(session_id)
+            if lock is not None:
+                lock.release()
+                del self._locks[session_id]
 
     # ---- entry point ------------------------------------------------------------------------------
     def handle_message(self, session_id: str, browser_id: str, request_id: str, message: str) -> tuple[int, dict[str, Any]]:
@@ -156,8 +166,7 @@ class ChatService:
             tx.execute("INSERT INTO requests VALUES (?,?,?,?,?,?,?,?)",
                        (user_id, session_id, request_id, input_hash, "processing", None, now, now))
 
-        lock = self._session_lock(session_id)
-        if not lock.acquire(blocking=False):
+        if not self._try_lock_session(session_id):
             self._release_request(session_id, request_id)
             return 409, {"detail": BUSY, "code": ErrorCode.CONFLICT.value}
         counters = Counters()
@@ -179,7 +188,7 @@ class ChatService:
                          "code": ErrorCode.INTERNAL_ERROR.value,
                          "message": "Something went wrong on the server. Nothing was changed.", "retryable": True}
         finally:
-            lock.release()
+            self._unlock_session(session_id)
             log.info("turn", extra={
                 "request_id": request_id, "session_id": session_id, "outcome": outcome,
                 "model_calls": counters.model_calls, "tool_calls": counters.tool_calls,

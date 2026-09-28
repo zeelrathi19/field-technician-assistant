@@ -15,8 +15,9 @@ from tests.conftest import count, status_of  # noqa: F401  (re-export)
 class Harness:
     def __init__(self, tmp_path: Path, model: Any = None, **overrides: Any):
         self.tmp_path = tmp_path
-        self.settings = Settings(model_provider="offline", database_path=tmp_path / "app.sqlite3",
-                                 frontend_dist=tmp_path / "no-ui", **overrides)
+        opts = {"model_provider": "offline", "database_path": tmp_path / "app.sqlite3",
+                "frontend_dist": tmp_path / "no-ui", **overrides}
+        self.settings = Settings(**opts)
         self.app = create_app(self.settings, model=model)
         self.client = TestClient(self.app)
         self.db: Database = self.app.state.chat.db
