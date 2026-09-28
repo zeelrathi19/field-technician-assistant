@@ -23,8 +23,9 @@ dev: ## backend with reload + Vite dev server (:5173, proxies /api)
 	(cd backend && $(UV) run uvicorn --factory app.main:app_factory --reload --port $(PORT)) & \
 	(cd frontend && $(NPM) run dev); wait
 
-test: ## backend unit + scenario + API + adapter tests (no key needed)
+test: ## backend unit + scenario + API + adapter tests + agentctl tests (no key needed)
 	cd backend && $(UV) run pytest -q -p no:cacheprovider
+	cd backend && $(UV) run pytest ../tools/tests -q -p no:cacheprovider --rootdir=..
 
 e2e: build-ui ## browser tests (Playwright; set PLAYWRIGHT_CHROMIUM_EXECUTABLE or run `uv run playwright install chromium`)
 	cd backend && $(UV) run pytest ../e2e -q -p no:cacheprovider --rootdir=..

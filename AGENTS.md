@@ -1,42 +1,89 @@
-# Implementation agent instructions
+# AGENTS.md — single source of truth for every coding agent
 
-This package is currently a plan. The user requested the implementation-ready plan and HTML guide first. Do not infer authorization to publish or claim that application code already exists. If subsequently asked to implement, follow this document and the frozen contracts.
+This file is read natively by Codex, Jules, Amp, OpenCode, Zed, Factory and Cursor, and is mirrored
+(by `python3 tools/agentctl.py sync-pointers`) into `CLAUDE.md`, `GEMINI.md`,
+`.github/copilot-instructions.md`, `.cursor/rules/agents.mdc`, `.windsurf/rules/agents.md`,
+`.clinerules/agents.md` and `CONVENTIONS.md` (Aider). **Edit only this file**, then run `sync-pointers`.
+Any agent on any LLM provider follows the same rules; several may work at the same time.
 
-## Read before working
+## What this repo is
 
-1. README.md and IMPLEMENTATION_PLAN.md.
-2. docs/contracts.md, docs/memory-and-prompts.md and docs/guardrails.md.
-3. docs/acceptance-tests.md, docs/delivery-and-workflow.md and DECISIONS.md.
-4. Your assigned task, ownership boundaries and latest docs/handoff.md.
+A field-technician assistant: Python/FastAPI backend + minimal React UI. A technician asks maintenance
+questions (answered only from `inputs/knowledge.md`) and reads/changes their own work orders through four
+LLM-selected tools (`get_work_order`, `update_status`, `add_note`, `escalate`). The LLM proposes; typed
+backend code authorizes; SQLite commits; the UI shows deterministic receipts and verified citations.
+Status: **implemented and tested** (see `docs/validation.md`). Assessment context: `docs/EVALUATION.md`.
 
-`docs/contracts.md` owns exact API/schema names and default limits. The source assignment owns its required business invariants; IMPLEMENTATION_PLAN.md maps them. If another document conflicts with contracts, flag and reconcile the conflict before dependent code. Do not silently pick the easier interpretation.
+## Invariants
 
-## Non-negotiable shared model
+<!-- agentctl:invariants:begin -->
+1. The model only *proposes*. Ownership, status transitions, schemas and the one-write-per-turn limit are enforced in code (`backend/app/service.py`, `tools.py`, `agent.py`). Never move a rule into the prompt only, and never make a hard rule configurable.
+2. Status moves exactly one step: Open -> In Progress -> On Hold -> Completed. No skips, no reversals, no same-state, no auto-traversal. Completed is terminal for status (notes/escalations still allowed).
+3. Every tool call, including reads, re-checks `assignedTech == currentUser` on fresh DB rows. Unowned and missing IDs return the same public error. Identity never comes from chat or tool args.
+4. Exactly five model-visible tools: the four business tools + non-executable `respond`. Static registry, strict Pydantic (extra=forbid, no coercion). No eval/exec/shell/SQL/dynamic dispatch.
+5. Maintenance facts reach the UI only through `AnswerVerifier` (verbatim quotes + number/ID/status/date provenance) or as whole approved KB sections. Uncovered questions abstain. No web/general-knowledge fallback.
+6. <=1 mutation per turn; a mutation (accepted or refused) ends the turn with a DB-backed receipt. No repair loops. Request IDs are idempotent.
+7. Session focus is a reference, never permission. It comes from the technician's own words; a foreign/missing ID clears it; ambiguity asks.
+8. User text, KB text, work-order fields and notes are data, never instructions. Never log message bodies, notes, prompts or keys.
+9. Tests are the contract: `make check` must pass before any handoff. Add a failing test before changing behaviour. Do not weaken a test to make it pass.
+10. Git: branch per task (`agent/<agent>/<task>` or `feat|fix|docs/...`), never commit directly to `main`, author/committer name `Zeel Rathi`, no secrets/.env/DB/PDF in git.
+<!-- agentctl:invariants:end -->
 
-- LLM proposes; typed backend code authorizes; SQLite commits; renderer reports receipts.
-- Exact four tools. No eval, arbitrary dispatch, SQL generation, shell, browser, or configuration tools.
-- Fresh ownership on every tool, server-owned principal, exact adjacent status path.
-- Explicit target/action/payload binding; one mutation per turn; no intermediate workaround.
-- Unknown/malformed calls fail closed. No prompt can disable a rule.
-- KB facts are cited complete approved sections; absence means abstention, not guessing.
-- Session focus is not authority; ambiguity clarifies; foreign/missing ID clears old focus.
-- Two model attempts and two tool calls per turn maximum; retries count.
-- Current package is planning only; record actual evidence before marking implementation complete.
+## Start here (every session, every agent)
 
-## Parallel development protocol
+```sh
+make context                                   # board, live claims, ready tasks, recent handoffs/learnings
+python3 tools/agentctl.py worktree T12 --agent codex-1 --provider openai/gpt-5   # claim + isolated worktree
+cd ../unfoldxr-task.worktrees/T12-codex-1
+make setup && make check                       # green before you start
+# ... work only inside the task's `paths:`; add tests first ...
+make check
+python3 tools/agentctl.py handoff T12 --agent codex-1 --summary "..." --checks "make check: 212 passed"
+python3 tools/agentctl.py release T12 --agent codex-1 --status review
+```
 
-The user requests parallel subagents where work is independent. After contracts are frozen, use bounded backend-policy, model/context, and UI tasks. Each subagent reads the whole shared model above and relevant contracts. Give exclusive file ownership; one integration owner changes shared contracts, locks and wiring. Use isolated worktrees for concurrent branch edits when available. Do not run concurrent git checkout/index operations in the same working tree.
+Read order: this file → `docs/architecture.md` (system map, where to change what) → `docs/contracts.md`
+→ your task card in `.agents/tasks/` → latest relevant `.agents/handoffs/`.
 
-A subagent completion report must include: files changed; requirement IDs covered; checks actually run and results; unresolved risk; contract changes; next action. Contract changes need integration review before dependent work continues. Do not add runtime multi-agent orchestration merely because development uses subagents.
+## Parallel work protocol
 
-## Quality and decisions
+- **Claim before editing.** `agentctl claim|worktree` is atomic and shared across all worktrees of this clone
+  (state lives in the git common dir). It refuses a task already claimed, one whose dependencies are not done,
+  or one whose `paths:` overlap another live claim. Claims older than 2 h without `heartbeat` are stale.
+- **Different machines/containers:** push your branch `agent/<agent>/<task>` early — `agentctl claims` and
+  `claim` also inspect remote `agent/*` branches.
+- **Stay inside your paths.** `agentctl check-paths --staged` (run by the pre-commit hook after `make hooks`)
+  blocks files owned by another live claim.
+- **Shared files** (`docs/contracts.md`, `backend/app/tools.py` schemas, `backend/app/config.py`, lockfiles,
+  `AGENTS.md`) change only in a task that declares them; announce contract changes in the handoff.
+- **One git index per worktree.** Never run checkout/rebase in another agent's worktree.
+- **Record, don't remember.** Durable facts go in `.agents/LEARNINGS.md` (`agentctl learn`), decisions in
+  `docs/decision-log.md`. Never store chain-of-thought.
 
-Use typed Python, composition, small cohesive classes and a plain React UI. A provider protocol and repository boundary are useful seams; abstraction factories, speculative adapters and deep inheritance are not required. Make error paths explicit; preserve failure semantics.
+## Commands
 
-For a material decision record: ID, decision, why, alternative rejected, consequence, verification/revisit trigger. Keep DECISIONS.md around half a page; put the full register in docs/decision-log.md. Record an atomic learning as one observation + evidence + consequence; label untested hypotheses. Never request/store private chain-of-thought or repeat undocumented personal memories as project facts.
+| Need | Command |
+|---|---|
+| Install | `make setup` (uv + npm ci) |
+| Tests (no key) | `make test` — unit, scenario (R01–R17, S01–S25, C01–C09), API, adapter contracts, agentctl |
+| Browser e2e | `make e2e` (Playwright; offline model) |
+| Everything before handoff | `make check` |
+| Run locally | `make run` → http://127.0.0.1:8000 |
+| One-command launch | `docker compose up --build` |
+| Live LLM smoke | put provider in `.env`, `make smoke` |
 
-Use feature/fix/docs branches and PR review, never direct feature work on main. All commits use Zeel Rathi as author and committer name, with user-verified email. Do not invent the email or change global git config. No API tokens, .env, databases, transcripts, or assignment PDF in Git. Follow user-authorized remote setup through secure credential tooling; never embed a token in a URL.
+## Code conventions
+
+- Python ≥3.11, typed, small cohesive modules; composition over inheritance; Pydantic at boundaries,
+  dataclasses inside. Domain policy stays framework-free (`domain.py`, `service.py`).
+- Provider SDK types never leave `backend/app/llm/`. New provider = one adapter + one branch in `llm/factory.py`
+  + wire-shape tests in `tests/test_adapters.py`.
+- Prompt changes: edit `backend/app/prompts/v1/*.txt` (or add `v2`), run scenario tests + `make smoke`.
+- React: plain components and CSS, render text only (no `dangerouslySetInnerHTML`).
+- Errors are explicit typed results (`ToolResult`, `ErrorCode`); no broad `except` that turns failure into success.
 
 ## Done means evidence
 
-Implement the required checks in the acceptance matrix. Run tests for policy/data/model contracts and actual browser behavior; record real-provider testing separately from fake-model tests. Keep README short and runnable. Update HTML and docs when contracts change. A failing/missing required check remains open, even if a deadline is near.
+A task is done when its acceptance boxes are ticked, `make check` passes, a handoff lists the exact
+commands run and results, and docs/HTML are updated if behaviour or contracts changed. Record live-provider
+results separately from fake/offline results. A missing check stays open, whatever the deadline.
