@@ -10,7 +10,8 @@
    - run `docker compose up --build` on a machine that can reach Docker Hub
    - run `tools/set-git-email.sh <zeel's verified email>`
    - review `DECISIONS.md`.
-3. Keep `ASSIGNMENT.pdf` out of git (it is ignored). If you have it, re-check `docs/EVALUATION.md` §1 against it. The PDF was not in the package this build used.
+3. Publish privately with `tools/publish-github.sh <owner> <repo>` (token read from `$GH_TOKEN` or a hidden prompt; never stored). History was scanned clean before publishing.
+4. Keep `ASSIGNMENT.pdf` out of git (it is ignored). If you have it, re-check `docs/EVALUATION.md` §1 against it. The PDF was not in the package this build used.
 
 ## Atomic project learnings
 
