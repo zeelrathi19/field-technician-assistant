@@ -37,7 +37,7 @@ These are the results the commands actually produced. Nothing below is a planned
 
 ## Not verified here (open)
 
-1. **`docker compose up --build` end to end.** The sandbox's egress policy blocks Docker Hub (`registry-1.docker.io` → 403), so base images cannot be pulled. The same layout was reproduced and served without Docker. Run it once on a normal machine (tracked as a CI job in `.github/workflows/ci.yml`).
+1. ~~Docker image build~~ — resolved: GitHub Actions run 36476263349 on `zeelrathi19/field-technician-assistant` passed `make setup`, `make check`, Playwright `make e2e` and `docker compose build` on a clean Ubuntu runner. `docker compose up` itself was not run there.
 2. **Live LLM behaviour.** No provider key was available. Adapters are verified against recorded OpenAI/Anthropic request and response shapes, including error mapping. Run `make smoke` with a key to verify live behaviour. Board task T10 adds a multi-provider eval.
 3. ~~Commit email~~ — resolved: history rewritten to Zeel's verified address before the first push (T16).
 
