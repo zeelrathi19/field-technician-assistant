@@ -1,0 +1,27 @@
+[project]
+name = "field-technician-assistant"
+version = "1.0.0"
+description = "Grounded, policy-enforced field technician assistant (FastAPI backend)"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.30,<1",
+  "pydantic>=2.8,<3",
+  "pydantic-settings>=2.4,<3",
+  "httpx>=0.27,<1",
+  "openai>=1.40",
+  "anthropic>=0.40",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "playwright>=1.45",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
