@@ -14,6 +14,7 @@ PATTERNS = {
     "OpenAI-style key": re.compile(r"\bsk-(?:proj-|ant-)?[A-Za-z0-9_\-]{20,}"),
     "Google API key": re.compile(r"\bAIza[0-9A-Za-z_\-]{35}\b"),
     "GitHub token": re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}\b"),
+    "GitHub fine-grained token": re.compile(r"\bgithub_pat_[A-Za-z0-9_]{40,}\b"),
     "Groq key": re.compile(r"\bgsk_[A-Za-z0-9]{40,}\b"),
     "AWS access key": re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     "Private key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
