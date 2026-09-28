@@ -1,0 +1,21 @@
+# One command: `docker compose up --build`  ->  http://localhost:8000
+# Without a .env file the app starts in clearly-labelled offline mode (no LLM).
+services:
+  app:
+    build: .
+    image: field-technician-assistant:local
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_PATH: /data/assistant.sqlite3
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - assistant-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # lets MODEL_BASE_URL reach a local Ollama/vLLM
+    restart: unless-stopped
+
+volumes:
+  assistant-data: {}
