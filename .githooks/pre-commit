@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Enabled by `make hooks`. Fast, vendor-neutral guards for every agent and human.
+set -e
+python3 tools/scan_secrets.py --staged
+python3 tools/agentctl.py check-paths --staged ${AGENTCTL_STRICT:+--strict}
+name="$(git config user.name || true)"
+if [ "$name" != "Zeel Rathi" ]; then
+  echo "pre-commit: git user.name is '$name'; this project commits as 'Zeel Rathi' (git config --local user.name 'Zeel Rathi')" >&2
+  exit 1
+fi
+branch="$(git branch --show-current)"
+if [ "$branch" = "main" ] && [ -z "$ALLOW_MAIN_COMMIT" ]; then
+  echo "pre-commit: don't commit directly to main — use a task branch (ALLOW_MAIN_COMMIT=1 for merges/emergencies)" >&2
+  exit 1
+fi

@@ -1,0 +1,4 @@
+# Aider: load the shared agent instructions on every session.
+read:
+  - AGENTS.md
+  - CONVENTIONS.md
