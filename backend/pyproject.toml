@@ -2,7 +2,7 @@
 name = "field-technician-assistant"
 version = "1.0.0"
 description = "Grounded, policy-enforced field technician assistant (FastAPI backend)"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
   "fastapi>=0.115,<1",
   "uvicorn>=0.30,<1",

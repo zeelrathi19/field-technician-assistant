@@ -74,7 +74,7 @@ Read order: this file → `docs/architecture.md` (system map, where to change wh
 
 ## Code conventions
 
-- Python ≥3.11, typed, small cohesive modules; composition over inheritance; Pydantic at boundaries,
+- Python ≥3.10 (Docker: 3.12), typed, small cohesive modules; composition over inheritance; Pydantic at boundaries,
   dataclasses inside. Domain policy stays framework-free (`domain.py`, `service.py`).
 - Provider SDK types never leave `backend/app/llm/`. New provider = one adapter + one branch in `llm/factory.py`
   + wire-shape tests in `tests/test_adapters.py`.
