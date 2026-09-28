@@ -1,5 +1,7 @@
 # Guardrails and execution contract
 
+> **Status (29 Sep 2026): implemented, with one deliberate change.** The "narrow explicit supported action patterns" in *One turn, one intentional mutation* step 4 were replaced by `IntentGuard` consistency checks (D41): the LLM picks the call from natural language; code verifies target binding (explicit ID or earlier-turn focus), that the requested status is named in the user's words (or "next/advance" equals the one legal next status), no negation/how-to phrasing, one action category, and note/reason text grounded in the user's words (≥75% content-token overlap). Every other rule below is enforced as written.
+
 This is an implementation specification. “Required” below means required by the assignment; “added” means a deliberately small safeguard chosen for this design. No model message, retrieved passage, tool result, user note, or conversation summary is an authority for changing these rules.
 
 ## Trust and authority

@@ -68,3 +68,22 @@ Status: accepted **design choices**, pending implementation evidence. These are 
 ## Reconsideration rule
 
 A material change must cite the requirement it improves, identify which tests may change, and append a new dated decision superseding the prior ID. Do not quietly edit a rule solely to satisfy a convenient demo. Record measured costs/latency only after execution; current budgets are design limits.
+
+## Implementation decisions (29 Sep 2026)
+
+Supersede earlier IDs where noted. Evidence = test names in `backend/tests/` unless stated.
+
+| ID | Final choice | Why | Alternative / cost | Evidence / revisit |
+|---|---|---|---|---|
+| D41 (supersedes D19) | IntentGuard = consistency checks on the LLM's proposal, not an anchored command grammar | Keeps LLM tool selection meaningful for natural phrasing while blocking substitutions, negations, invented payloads | Heuristic; may ask to rephrase edge phrasings ("mark on hold, inspection is done") | `test_natural_phrasing_accepted`, S05, S06, S24, C01, `test_intent.py` |
+| D42 (supersedes D11) | Verified quoting: short model answer + verbatim quotes, provenance-checked; fallback to whole sections | Readable answers without trusting prose | Verifier proves provenance not relevance | S13, S13b, `test_verifier_catches_number_words`, `test_user_supplied_number_not_accepted_as_fact` |
+| D43 | Terminal `respond` tool + `tool_choice=required/any` | Identical structured ending across OpenAI, Anthropic, Gemini-compat, Ollama | One non-business tool in the registry | `test_adapters.py`, C09 |
+| D44 | Inject the technician's own roster (id/title/status/due) into server context; UI panel from a non-LLM endpoint | "What's on my plate?" answerable without a 5th business tool | ~150 tokens/turn | `test_roster_question_uses_server_context` |
+| D45 (supersedes D28) | 3 model calls / 3 tool calls per turn | Read → act (+ one transient retry) needs >2 | Slightly higher worst-case cost | S22b, C05, `test_read_then_act_in_one_turn` |
+| D46 | Pending clarification lets a bare ID supply a missing *target* for a status change | Natural "which one?" → "WO-003" flow | Never applies to note/reason payloads or "yes" | `test_clarification_then_bare_id_completes`, `test_bare_yes_does_not_execute` |
+| D47 (supersedes D34/D7) | Providers: OpenAI-compatible adapter (covers OpenAI, Gemini, Groq, OpenRouter, Ollama…) + native Anthropic + offline heuristic | User asked for provider-agnostic; keyless demo/e2e | Offline mode must stay visibly labelled "not an LLM" | adapter tests, `test_health_and_meta` |
+| D48 | Default provider `offline` when no `.env` | `docker compose up --build` works on a clean checkout | Reviewer must add a key for the real LLM | README, e2e |
+| D49 | Failed pre-write turns release their request reservation | Same request ID can be retried after a provider outage | — | S22 |
+| D50 | Agent coordination via `tools/agentctl.py` (claims in git common dir, path overlap, handoffs) + generated pointer files | Many agents/providers in parallel without a server | Local-machine atomicity; cross-machine relies on pushed `agent/*` branches | `tools/tests/test_agentctl.py` |
+| D51 | Commit identity `Zeel Rathi <zeel.rathi@placeholder.invalid>` until the verified email is supplied | Plan forbids inventing an email; placeholder is obviously non-real | History rewrite needed later (`tools/set-git-email.sh`) | T16 |
+| D52 | Docker build verified by reproducing the image layout (hash-locked pip install + built UI + env) because Docker Hub is blocked in the build sandbox | Honest partial evidence | Real `docker compose build` still to run on an unrestricted machine | docs/validation.md |

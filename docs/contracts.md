@@ -2,6 +2,23 @@
 
 Normative implementation specification. “Must” means a condition the implementation must satisfy before completion, not an already verified capability. `IMPLEMENTATION_PLAN.md` establishes scope; this file is the canonical naming/defaults reference.
 
+## As implemented (29 Sep 2026) — read this first
+
+This section overrides anything below that conflicts with it.
+
+| Topic | Implemented contract | Code |
+|---|---|---|
+| Model-visible tools | `get_work_order{id}`, `update_status{id,status}`, `add_note{id,text}`, `escalate{id,reason}` + terminal, non-executable `respond{kind: answer\|clarify\|unsupported\|refuse, text ≤1200, citations[{section_id, quote}] ≤6, missing[str] ≤5}`. All properties required, `additionalProperties:false`. | `backend/app/tools.py` |
+| Tool choice | OpenAI: `tool_choice="required"`, `parallel_tool_calls=false`, `strict:true` (dropped with `MODEL_COMPAT=generic`). Anthropic: `tool_choice={type:any, disable_parallel_tool_use:true}`. SDK retries disabled (`max_retries=0`). | `backend/app/llm/*` |
+| Turn budget | ≤`MAX_MODEL_CALLS_PER_TURN`=3 (one transient retry counted), ≤`MAX_TOOL_CALLS_PER_TURN`=3 (rejected calls count), mutations ≤1 (constant). A mutation, accepted or refused, ends the turn. | `backend/app/agent.py` |
+| Intent binding | Mutation target = the single explicit ID in the user's text (payload excluded) or, with none, the focus established in an **earlier** turn. Multiple IDs → clarify. Status must be named in the user's words, or "next/advance" = the legal next status. Negated/how-to phrasing → clarify. One action category per message. Note/reason ≥75% grounded in the user's words. Reads: explicit IDs ∪ focus ∪ own roster. | `backend/app/intent.py` |
+| Answers | `AnswerVerifier`: verbatim quote check (whitespace/markdown-insensitive, `...` splits), numbers incl. number words, WO IDs, dates, capitalised statuses must occur in cited sections/tool data/roster (user text is not evidence for facts). Failure → whole cited sections ("exact knowledge-base text") or fixed abstention. kb-1/kb-5 always attach kb-2 as related safety source. | `backend/app/grounding.py` |
+| ChatResponse | adds `meta{model_calls, tool_calls, latency_ms, provider, is_llm}`; assistant message carries `sources[{kind, section_id, heading, content_hash, text, quotes, related}]`, `cards[work order view]`, `action`, `missing`, `verified`, `outcome`. | `backend/app/agent.py` |
+| Extra endpoints | `GET /api/meta` (technician, provider, model, is_llm, prompt/KB version), `GET /api/work-orders` (own roster, read-only, not via LLM). | `backend/app/api.py` |
+| Origin policy | POST with an `Origin` header must match `ALLOWED_ORIGINS` or the request host; requests without `Origin` (CLI tools) are allowed. Cookie `fta_browser`: HttpOnly, SameSite=Strict, path `/api`. | `backend/app/api.py` |
+| Config | `MODEL_PROVIDER` ∈ {openai, anthropic, offline} (default offline), `MODEL_BASE_URL`, `MODEL_COMPAT` ∈ {openai, generic}, `MODEL_TEMPERATURE` optional; `MODEL_CONTEXT_TOKENS`/`CONTEXT_INPUT_BUDGET` replaced by `HISTORY_MESSAGES`=8 and `HISTORY_CHAR_BUDGET`=12000. | `backend/app/config.py` |
+| Persistence | Tables as below plus `users`; `sessions.pending_json`. Failed turns delete their `processing` reservation so the same request ID can be retried; crash-left `processing` rows become `interrupted` at startup. | `backend/app/db.py`, `agent.py` |
+
 ## HTTP boundary
 
 Use one browser origin (`http://localhost:8000` locally). Build React with Vite and serve its static build from FastAPI in a multi-stage Docker image. A single Compose app service and named SQLite volume are enough. Development uses the Vite `/api` proxy. Bind published port to `127.0.0.1`; no wildcard CORS. Do not put provider keys in any `VITE_*` variable.

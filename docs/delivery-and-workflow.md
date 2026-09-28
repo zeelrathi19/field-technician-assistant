@@ -1,5 +1,7 @@
 # Delivery and development workflow
 
+> **Status (29 Sep 2026): implemented.** `compose.yaml`, `Dockerfile`, `Makefile`, lockfiles (`backend/uv.lock`, `backend/requirements.lock`, `frontend/package-lock.json`) exist. Differences: without `.env` the app starts in labelled offline mode instead of failing; parallel-agent workflow is now tooled by `tools/agentctl.py` (see AGENTS.md).
+
 This is an implementation specification. Commands, runtime files, and verification gates below describe what the implementer must create and prove; they do not claim that the application already exists or passes checks. Read the architecture and implementation plan before starting. Record material choices in the decision record, using a short rationale, alternatives considered, and consequence. Do not record private reasoning transcripts.
 
 ## Scope and operating assumptions
