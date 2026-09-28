@@ -37,7 +37,18 @@ ESCALATE_WORDS = re.compile(r"\b(escalat\w*|flag(?:ged)? (?:it |this |wo-\d{3} )
 STATUS_VERBS = re.compile(r"\b(mark|set|move|change|update|status|put)\b", re.I)
 NEGATION = re.compile(
     r"\b(don'?t|do not|never|not yet|no need to|shouldn'?t|should not|stop|cancel|without|avoid)\b(?:\W+\w+){0,4}?\W+"
-    r"(mark|set|move|start|complet\w*|close|finish|put|escalat\w*|add|note|log|chang\w*|updat\w*|hold|flag)", re.I)
+    r"(?P<verb>mark|set|move|start|complet\w*|close|finish|put|escalat\w*|add|note|log|chang\w*|updat\w*|hold|flag)", re.I)
+
+
+def _verb_category(verb: str) -> str | None:
+    v = verb.lower()
+    if v.startswith(("escalat", "flag")):
+        return "escalate"
+    if v in ("note", "log"):
+        return "note"
+    if v == "add":
+        return None  # ambiguous: treat as negating whatever was asked
+    return "status"
 HYPOTHETICAL = re.compile(
     r"\b(how (?:do|can|should|would|to)|what (?:happens|if|would)|should i|when (?:should|do|can) i|"
     r"is it (?:ok|okay|safe|possible|allowed)|can i|could i|am i allowed|what does it mean)\b", re.I)
@@ -178,14 +189,16 @@ class IntentGuard:
         payload = self._payload(call)
         text = strip_payload(facts.intent_text, payload)
 
-        if NEGATION.search(text):
-            return clarify("Your message reads as *not* wanting a change, so I didn't change anything. "
-                           "If you do want it, say it directly, e.g. \"mark WO-003 complete\".")
+        wanted = {"update_status": "status", "add_note": "note", "escalate": "escalate"}[call.name]
+        for neg in list(NEGATION.finditer(text)):
+            if _verb_category(neg.group("verb")) in (wanted, None):
+                return clarify("Your message reads as *not* wanting this change, so I didn't change anything. "
+                               "If you do want it, say it directly, e.g. \"mark WO-003 complete\".")
+            text = text.replace(neg.group(0), " ")  # "never mind the note" is not a second request
         if HYPOTHETICAL.search(text):
             return clarify("That sounds like a question rather than a request, so I didn't change anything. "
                            "To make the change, say it directly, e.g. \"put WO-001 on hold\".")
 
-        wanted = {"update_status": "status", "add_note": "note", "escalate": "escalate"}[call.name]
         cats = action_categories(text)
         if wanted not in cats:
             return mismatch("I couldn't find that action in your message, so nothing was changed. "
