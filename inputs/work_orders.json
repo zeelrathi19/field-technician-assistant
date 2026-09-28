@@ -1,0 +1,138 @@
+{
+  "currentUser": {
+    "id": "tech-ravi",
+    "name": "Ravi Kumar",
+    "role": "technician"
+  },
+  "workOrders": [
+    {
+      "id": "WO-001",
+      "title": "Cooling unit not holding temperature",
+      "assetType": "CU-4400",
+      "assignedTech": "tech-ravi",
+      "status": "In Progress",
+      "dueDate": "2026-07-18",
+      "steps": [
+        "Inspect thermostat wiring",
+        "Check refrigerant pressure",
+        "Perform unit reset"
+      ]
+    },
+    {
+      "id": "WO-002",
+      "title": "Replace clogged air filter",
+      "assetType": "AF-200",
+      "assignedTech": "tech-ravi",
+      "status": "Open",
+      "dueDate": "2026-07-17",
+      "steps": [
+        "Power down unit",
+        "Replace AF-series filter",
+        "Log replacement date"
+      ]
+    },
+    {
+      "id": "WO-003",
+      "title": "Compressor lockout after repeated resets",
+      "assetType": "CU-4400",
+      "assignedTech": "tech-ravi",
+      "status": "On Hold",
+      "dueDate": "2026-07-16",
+      "steps": [
+        "Wait for compressor cooldown",
+        "Attempt single reset",
+        "Escalate if LED stays red"
+      ]
+    },
+    {
+      "id": "WO-004",
+      "title": "Warranty claim — dispute on labor coverage",
+      "assetType": "CU-3300",
+      "assignedTech": "tech-priya",
+      "status": "In Progress",
+      "dueDate": "2026-07-19",
+      "steps": [
+        "Verify install date",
+        "Check for non-approved parts",
+        "Confirm warranty status with customer"
+      ]
+    },
+    {
+      "id": "WO-005",
+      "title": "Routine filter replacement — completed last visit",
+      "assetType": "AF-200",
+      "assignedTech": "tech-ravi",
+      "status": "Completed",
+      "dueDate": "2026-07-10",
+      "steps": [
+        "Replace AF-series filter",
+        "Log replacement date"
+      ]
+    },
+    {
+      "id": "WO-006",
+      "title": "Exposed wiring reported near disconnect panel",
+      "assetType": "CU-5500",
+      "assignedTech": "tech-ravi",
+      "status": "In Progress",
+      "dueDate": "2026-07-16",
+      "steps": [
+        "Apply lockout/tagout",
+        "Verify zero energy",
+        "Inspect wiring damage"
+      ]
+    },
+    {
+      "id": "WO-007",
+      "title": "Quarterly maintenance — rooftop units",
+      "assetType": "CU-5500",
+      "assignedTech": "tech-arjun",
+      "status": "Open",
+      "dueDate": "2026-07-22",
+      "steps": [
+        "Inspect all rooftop units",
+        "Replace filters",
+        "Record readings"
+      ]
+    },
+    {
+      "id": "WO-008",
+      "title": "Thermostat firmware behaving erratically",
+      "assetType": "CU-4400",
+      "assignedTech": "tech-ravi",
+      "status": "Open",
+      "dueDate": "2026-07-20",
+      "steps": [
+        "Reproduce the fault",
+        "Check firmware version",
+        "Document findings"
+      ]
+    },
+    {
+      "id": "WO-009",
+      "title": "Water pooling near electrical panel",
+      "assetType": "CU-3300",
+      "assignedTech": "tech-priya",
+      "status": "On Hold",
+      "dueDate": "2026-07-15",
+      "steps": [
+        "Do not power on",
+        "Contain water source",
+        "Escalate hazard"
+      ]
+    },
+    {
+      "id": "WO-010",
+      "title": "Filter replacement pending part delivery",
+      "assetType": "AF-200",
+      "assignedTech": "tech-ravi",
+      "status": "On Hold",
+      "dueDate": "2026-07-21",
+      "steps": [
+        "Await AF-200 stock",
+        "Replace filter on arrival",
+        "Close work order"
+      ]
+    }
+  ]
+}
