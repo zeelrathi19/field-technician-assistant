@@ -9,6 +9,7 @@ Every decision in force, with the reasoning, the alternative that was rejected a
 | D53–D59 | Review, Gemini provider (29 Sep 2026) |
 | D60 | Cut to essentials (29 Sep 2026) |
 | D61–D63 | Live Gemini run (29 Sep 2026) |
+| D64 | Submission cleanup (29 Sep 2026) |
 
 Summaries and tradeoffs only, never reasoning transcripts.
 
@@ -46,7 +47,6 @@ Summaries and tradeoffs only, never reasoning transcripts.
 | D33 | Local fixture principal; auth gate before public use | Assessment supplies currentUser, not an identity system | Not a secure multi-user deployment as delivered | Real auth required before shared hosting |
 | D36 | Feature branches + PRs; Zeel Rathi identity | Traceable reviewed changes match user request | Email/remote needed before commits/push | Inspect author/committer and staged diff |
 | D37 | Short README + short DECISIONS + linked details | Entry points stay readable while full spec remains available | Several focused docs rather than one giant README | Link/consistency review |
-| D38 | Self-contained HTML with diagrams/scenarios | Explains architecture offline, supports interview walkthrough | Simulator illustrates design, not runtime proof | Desktop/mobile browser interaction checks |
 | D39 | Do not include PDF in submission | Source is assessment material, not runtime dependency | Original source remains on user's machine | `.gitignore`, `make secrets` |
 
 ## Decisions inside runtime loops
@@ -112,3 +112,9 @@ Evidence = test names in `backend/tests/` unless stated.
 | D61 | Gemini thinking is off, hardcoded in `gemini_native.py`: `THINKING_BUDGET = 0` in `thinkingConfig`, and a fixed `THINKING_HEADROOM = 512` added to `maxOutputTokens` so `max_output_tokens` stays the reply budget. Not configurable via `.env` or the prompt. | Tool choice and answers are checked deterministically server-side, so the model does not need long reasoning. Gemini counts thought tokens against `maxOutputTokens`; on `gemini-3.8-flash` default thinking used ~1000–1600 tokens and truncated the call (`MALFORMED_FUNCTION_CALL`, smoke 6/9). 3.x flash still emits ~200 thought tokens at budget 0 (`thinkingLevel: minimal` is rejected), hence the headroom. | Slightly higher max token spend per call (headroom), unused in practice; a model that cannot run at budget 0 would need a new adapter decision | `test_thinking_is_off_and_cannot_eat_the_reply_budget`; live `make smoke` 9/9 on `gemini-3.8-flash`, ~2 s per turn (was 2–11 s) |
 | D62 | Deterministic roster counts and refusals in `AnswerVerifier`: "N work orders" is checked against counts derived from the technician's own roster (and licenses no other number); `respond kind=refuse` renders fixed server text: the service's public "not available to you" message for an unowned/unknown ID, otherwise a scope refusal, plus the technician's own count. | Live on `gemini-3.8-flash`, "how many work orders do I have" was answered correctly (7) but rejected (`unsupported number 7`) and replaced by the KB abstention; "what other work orders are there… which technicians" was sometimes classed `unsupported`, so the reply blamed the knowledge base, with model-chosen wording otherwise. | The model still picks the kind; a count phrased another way ("2 are on hold") falls back rather than being shown | `test_roster_count_answer_is_shown`, `test_wrong_roster_count_is_not_shown`, `test_count_does_not_license_uncited_numbers`, `test_scope_refusal_is_server_authored`, `test_refusal_for_unowned_and_missing_ids_is_identical` |
 | D63 | Tailored refusal lead: for out-of-scope requests without an ID, the model's one-sentence denial is shown if `AnswerVerifier._refusal_lead_ok` passes (denial cue, ≤240 chars, no IDs/numbers/dates/assets/statuses, no names the technician didn't type, no ownership/existence words, no unasked maintenance terms, no action claim/markup); else the fixed D62 text. ID refusals stay fully fixed. | The owner wanted denials that answer the actual question; fixed text read as canned. Keeping facts server-side means a bad lead only costs tone, never data. | Conservative: harmless wording such as "which work orders exist" falls back to the fixed text | `test_tailored_refusal_lead_is_shown`, `test_unsafe_refusal_lead_falls_back_to_fixed_text` (9 cases), `test_refusal_for_an_id_ignores_the_lead`; live: 4 of 5 out-of-scope questions got a tailored lead on `gemini-3.8-flash` |
+
+## Submission cleanup (29 Sep 2026)
+
+| ID | Final choice | Why | Alternative / cost | Evidence |
+|---|---|---|---|---|
+| D64 | Removed the pre-build HTML guide (`docs/architecture-guide.html`, replaces D38) and the review-findings table in `docs/testing.md` (D53–D56 hold the same facts). README rewritten as the single entry point: quick start, usage, how it works, development, limitations. No code or behaviour change. | The guide was written before the build and still carried planning-era sections; `docs/architecture.md` describes the running system. One accurate doc per topic is easier to review. | The interactive scenario walkthrough is gone (it is in git history); the same scenarios are automated in `test_scenarios.py` | `make check`; link check over all docs |
