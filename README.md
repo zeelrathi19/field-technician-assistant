@@ -9,7 +9,19 @@ A chat assistant for field-service technicians, with a guardrailed LLM at its co
 Open → In Progress → On Hold → Completed     one step at a time · own orders only · one change per message
 ```
 
+![The chat screen on first start: suggested prompts on the left, the technician's own work orders on the right](docs/images/screenshot.png)
+
+*First start, in offline mode. The chat (left) offers example prompts. The panel (right) lists only the signed-in technician's work orders, read straight from the database, with the next allowed status for each. The header badge shows which model is answering.*
+
 **Stack:** Python 3.10+ / FastAPI · React 19 + TypeScript (Vite) · SQLite · Gemini, any OpenAI-compatible API (OpenAI, Groq, OpenRouter, Ollama…), or a keyless offline mode.
+
+## Prerequisites
+
+| To | You need |
+|---|---|
+| Run the app | Docker with Compose v2.24 or newer (`docker compose version`), and port 8000 free |
+| Use a real LLM (optional) | An API key for Gemini or an OpenAI-compatible provider, or a local Ollama. The model must support tool calling. |
+| Develop, run tests or `make smoke` | Python 3.10+, [uv](https://docs.astral.sh/uv/), Node 22 and `make` |
 
 ## Quick start
 
@@ -17,17 +29,28 @@ Open → In Progress → On Hold → Completed     one step at a time · own ord
 docker compose up --build        # → http://localhost:8000
 ```
 
-That's all that's needed. With no `.env` the app runs in **offline mode**: a deterministic stand-in replaces the LLM so every flow can be clicked through, and the UI labels it "not an LLM".
+With no `.env` the app runs in **offline mode**: a deterministic stand-in replaces the LLM so every flow can be clicked through, and the UI labels it "not an LLM".
 
-To use a real model, copy `.env.example` to `.env`, uncomment one provider block, and restart:
+**Use a real model:** copy the example file, uncomment **one** provider block, fill it in, and start again.
 
 ```sh
-cp .env.example .env             # e.g. MODEL_PROVIDER=gemini, MODEL_NAME=..., MODEL_API_KEY=...
+cp .env.example .env
 docker compose up --build
-make smoke                       # optional: 9 live turns against your provider, PASS/FAIL only
 ```
 
-The key stays on the server and is never logged or sent to the browser. Provider options, configuration and troubleshooting: [docs/setup.md](docs/setup.md).
+| Setting | Example | Notes |
+|---|---|---|
+| `MODEL_PROVIDER` | `gemini` · `openai` · `offline` | `offline` is the default |
+| `MODEL_NAME` | `gemini-3.8-flash`, `gpt-4.1-mini` | Required for a real provider; there is no default model |
+| `MODEL_API_KEY` | | Stays on the server, never logged or sent to the browser. Not needed for a local Ollama. |
+| `MODEL_BASE_URL` + `MODEL_COMPAT=generic` | `https://api.groq.com/openai/v1` | Any OpenAI-compatible server (Groq, OpenRouter, Ollama…) |
+
+The badge in the app header shows the active model: blue for a real LLM, yellow for offline mode. All providers, tuning settings and troubleshooting: [docs/setup.md](docs/setup.md).
+
+```sh
+docker compose down              # stop; data is kept in the assistant-data volume
+docker compose down -v           # stop and delete all data (reseeds from inputs/ on next start)
+```
 
 ## Try it
 
@@ -59,7 +82,7 @@ LLM ─ must call exactly one tool per step   (≤3 model calls · ≤3 tool cal
    │     ToolDispatcher    known tool name, strict argument schema
    │     IntentGuard       the order they named or were discussing; for writes, the status/text they asked for
    │     WorkOrderService  own order + legal next status, inside one SQLite transaction
-   │       → read:  result goes back to the LLM
+   │       → read:  result goes back to the LLM (a plain "show WO-003" is answered straight from the row)
    │       → write: turn ends with a receipt built from the committed row
    │
    └─ respond  (answer · clarify · refuse)
@@ -76,7 +99,7 @@ Details: [docs/architecture.md](docs/architecture.md) (modules, turn loop) · [d
 
 ## Development
 
-Needs [uv](https://docs.astral.sh/uv/) and Node 22 (Docker isn't needed for these).
+Needs the development prerequisites above (Docker isn't needed for these).
 
 ```sh
 make setup     # install backend (uv) and frontend (npm ci) dependencies
@@ -85,6 +108,7 @@ make dev       # backend with reload + Vite on http://localhost:5173
 make test      # backend suite, no API key needed
 make e2e       # Playwright browser flow + WCAG 2.1 AA audit
 make check     # test + typecheck + secret scan (required before merge)
+make smoke     # live check: 9 turns against the provider in .env, PASS/FAIL only
 make reset-db  # DESTRUCTIVE: delete local/Docker data and reseed from inputs/
 ```
 
