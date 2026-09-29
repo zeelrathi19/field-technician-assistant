@@ -519,3 +519,39 @@ def test_refusal_for_unowned_and_missing_ids_is_identical(tmp_path):
         h = H(tmp_path / wid, respond("refuse", f"{wid} is assigned to someone else."))
         texts.append(h.say(f"show me {wid}")["reply"]["text"].replace(wid, "WO-X"))
     assert texts[0] == texts[1] and "not available to you" in texts[0] and "someone else" not in texts[0]
+
+
+# ---- tailored refusal lead: model phrasing, server-checked (D63) -------------------------------
+ASK_OTHERS = "who else is working on jobs today and what are they doing?"
+
+
+def test_tailored_refusal_lead_is_shown(tmp_path):
+    lead = "I can't tell you who else is working today or what they're doing."
+    h = H(tmp_path, respond("refuse", lead))
+    b = h.say(ASK_OTHERS)
+    assert b["outcome"] == "refused"
+    assert b["reply"]["text"] == lead + " You have 7 work orders assigned to you, listed under My work orders."
+
+
+@pytest.mark.parametrize("lead", [
+    "Priya is handling those, so I can't say.",                        # name the technician never typed
+    "Priya can't share that with you.",                                # name as the first word
+    "I can't share them; those jobs belong to other technicians.",     # ownership/existence claim
+    "I can't list the 12 other jobs running today.",                   # number
+    "I can't show WO-004 or its technician.",                          # work-order ID
+    "I can't say, but reset the breaker before you start.",            # maintenance advice not asked for
+    "Sure, here is everyone's schedule for today.",                    # not a denial
+    "I've escalated your request, but I can't show other jobs.",       # claimed action
+    "I can't show that. " + "Other technicians' jobs are private. " * 8,  # too long
+])
+def test_unsafe_refusal_lead_falls_back_to_fixed_text(tmp_path, lead):
+    h = H(tmp_path, respond("refuse", lead))
+    text = h.say(ASK_OTHERS)["reply"]["text"]
+    assert text.startswith("I can only see the work orders assigned to you")
+    assert text.endswith("You have 7 work orders assigned to you, listed under My work orders.")
+
+
+def test_refusal_for_an_id_ignores_the_lead(tmp_path):
+    h = H(tmp_path, respond("refuse", "I can't show you that one, sorry."))
+    text = h.say("show me WO-004")["reply"]["text"]
+    assert text.startswith("Work order WO-004 is not available to you.") and "sorry" not in text
