@@ -18,7 +18,7 @@ Copy `.env.example` to `.env` and uncomment **one** block. Settings from the rea
 |---|---|---|
 | Offline (default) | `MODEL_PROVIDER=offline` | Deterministic rules, **not an LLM**. For demos, CI and e2e tests. |
 | OpenAI | `MODEL_PROVIDER=openai`, `MODEL_NAME`, `MODEL_API_KEY` | Strict tool schemas, `tool_choice=required`, no parallel calls |
-| Gemini (AI Studio key) | `MODEL_PROVIDER=gemini`, `MODEL_NAME` (e.g. `gemini-2.5-flash`), `MODEL_API_KEY` | Native `generateContent` API with the `x-goog-api-key` header. Works with the new `AQ.` keys, which the OpenAI-compatible endpoint rejects. `make smoke` spaces its turns 7 s apart for free-tier limits. |
+| Gemini (AI Studio key) | `MODEL_PROVIDER=gemini`, `MODEL_NAME` (e.g. `gemini-3.8-flash`), `MODEL_API_KEY` | Native `generateContent` API with the `x-goog-api-key` header. Works with the new `AQ.` keys, which the OpenAI-compatible endpoint rejects. `make smoke` spaces its turns 7 s apart for free-tier limits. |
 | Groq / OpenRouter / Together / DeepSeek / Mistral | `MODEL_PROVIDER=openai`, `MODEL_COMPAT=generic`, `MODEL_BASE_URL=<their /v1 URL>`, `MODEL_NAME`, `MODEL_API_KEY` | `generic` drops parameters some servers reject |
 | Ollama / vLLM / LM Studio | `MODEL_PROVIDER=openai`, `MODEL_COMPAT=generic`, `MODEL_BASE_URL=http://localhost:11434/v1` (from Docker: `http://host.docker.internal:11434/v1`), `MODEL_NAME` | No key needed for local URLs. Pick a model that supports tool calling. |
 
