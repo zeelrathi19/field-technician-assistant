@@ -16,6 +16,11 @@ route works with both `AQ.` and legacy `AIza` keys.
   flash models still think a little at budget 0 (~200 tokens seen on gemini-3.8-flash).
   A fixed `THINKING_HEADROOM` is added so `max_output_tokens` stays the reply budget; without
   it a 1024 budget left ~40 tokens for the call and live runs hit MALFORMED_FUNCTION_CALL.
+* Models that only run in thinking mode reject budget 0 with a 400 (gemini-pro-latest,
+  gemini-3.1-pro: "Budget 0 is invalid"; gemini-3.5-flash-lite: a generic INVALID_ARGUMENT).
+  The first 400 on budget 0 is resent once with `THINKING_FALLBACK_BUDGET`, which this client
+  then keeps. It is a request-shape negotiation, never a retry of model output: a 400 on the
+  fallback budget is final.
 * Thought signatures and part metadata the API returns are kept inside this adapter
   and replayed on the follow-up request, as Gemini requires for multi-step tool use.
 """
@@ -37,6 +42,7 @@ DEFAULT_BASE = "https://generativelanguage.googleapis.com/v1beta"
 _DROP = {"additionalProperties", "pattern", "$schema"}
 THINKING_BUDGET = 0  # thinking off; the lowest value every Gemini flash model accepts
 THINKING_HEADROOM = 512  # tokens reserved for residual thinking on top of max_output_tokens
+THINKING_FALLBACK_BUDGET = 256  # for thinking-only models; accepted by every listed model, inside the headroom
 
 
 def to_gemini_schema(schema: Any) -> Any:
@@ -63,6 +69,7 @@ class GeminiClient:
         self._ids = itertools.count(1)
         self._parts: OrderedDict[str, dict[str, Any]] = OrderedDict()  # call id -> original functionCall part
         self._lock = threading.Lock()
+        self._thinking_budget = THINKING_BUDGET  # becomes THINKING_FALLBACK_BUDGET if the model rejects 0
 
     # ---- request building ---------------------------------------------------------------------
     def _remember(self, call_id: str, part: dict[str, Any]) -> None:
@@ -118,24 +125,29 @@ class GeminiClient:
                 for t in tools]}],
             "toolConfig": {"functionCallingConfig": {"mode": "ANY", "allowedFunctionNames": [t["name"] for t in tools]}},
             "generationConfig": {"maxOutputTokens": max_output_tokens + THINKING_HEADROOM,
-                                 "thinkingConfig": {"thinkingBudget": THINKING_BUDGET}},
+                                 "thinkingConfig": {"thinkingBudget": self._thinking_budget}},
         }
         if self.temperature is not None:
             body["generationConfig"]["temperature"] = self.temperature
         return body
 
     # ---- call -------------------------------------------------------------------------------------
-    def generate(self, system: str, messages: list[ModelMessage], tools: list[dict[str, Any]], *,
-                 max_output_tokens: int, timeout: float) -> ModelDecision:
-        body = self.build_request(system, messages, tools, max_output_tokens)
+    def _post(self, body: dict[str, Any], timeout: float) -> httpx.Response:
         url = f"{self._base}/models/{self.model}:generateContent"
         try:
-            resp = self._http.post(url, json=body, timeout=timeout,
+            return self._http.post(url, json=body, timeout=timeout,
                                    headers={"x-goog-api-key": self._key, "Content-Type": "application/json"})
         except httpx.TimeoutException as exc:
             raise ModelError("gemini timeout", transient=True) from exc
         except httpx.HTTPError as exc:
             raise ModelError(f"gemini connection error: {type(exc).__name__}", transient=True) from exc
+
+    def generate(self, system: str, messages: list[ModelMessage], tools: list[dict[str, Any]], *,
+                 max_output_tokens: int, timeout: float) -> ModelDecision:
+        resp = self._post(self.build_request(system, messages, tools, max_output_tokens), timeout)
+        if resp.status_code == 400 and self._thinking_budget == THINKING_BUDGET:
+            self._thinking_budget = THINKING_FALLBACK_BUDGET  # thinking-only model: negotiate once, then keep
+            resp = self._post(self.build_request(system, messages, tools, max_output_tokens), timeout)
 
         if resp.status_code != 200:
             try:

@@ -115,6 +115,22 @@ def mentioned_statuses(text: str) -> set[Status]:
     return {s for s, rx in STATUS_WORDS.items() if rx.search(text)}
 
 
+# A message made only of these words plus one work-order ID is a plain lookup ("show WO-003", "what's the
+# status of WO-005?"). After the model chooses get_work_order for exactly that ID, the server renders the
+# result from the database row instead of asking the model to restate it. Anything else (a question, an
+# action word, a negation) keeps the normal model turn.
+LOOKUP_WORDS = frozenset(
+    "show open get view display pull bring look up see check find give me the a an this that work order wo "
+    "please pls can could would you i let let's lets for of on about at what what's whats is status details "
+    "detail info information current card".split())
+
+
+def is_plain_lookup(message: str, explicit_ids: list[str]) -> bool:
+    if len(explicit_ids) != 1:
+        return False
+    return all(t in LOOKUP_WORDS for t in tokens(ID_RE.sub(" ", message)))
+
+
 def action_categories(text: str) -> set[str]:
     cats = set()
     if NOTE_WORDS.search(text):

@@ -39,7 +39,7 @@ flowchart LR
 4. **Call the model** with `tool_choice` set to required. It must call exactly one of `get_work_order`, `update_status`, `add_note`, `escalate` or `respond`.
 5. **Handle the proposal:**
    - unknown name or bad arguments → refused;
-   - a read → the order is checked for ownership, the result goes back to the model, and the loop continues;
+   - a read → the order is checked for ownership, the result goes back to the model, and the loop continues. Exception: if the message is a plain lookup (one ID plus only words from `intent.LOOKUP_WORDS`, e.g. "Show WO-003") and the model read exactly that ID, the server renders the reply from the row ("WO-003 is On Hold. The next allowed status is Completed.", or the fixed refusal if it isn't the technician's) and **the turn ends** without a second model call;
    - a write → `IntentGuard`, then `WorkOrderService` inside `BEGIN IMMEDIATE`, then a receipt, and **the turn ends**;
    - `respond` → `AnswerVerifier` → rendered.
 6. **Budgets:** ≤3 model calls (one transient retry counted), ≤3 tool calls, ≤1 write. Plain text with no tool call fails closed.

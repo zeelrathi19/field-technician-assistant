@@ -88,7 +88,8 @@ def test_thought_signature_and_tool_result_are_replayed():
                                                    (403, False, "config"), (429, True, "provider"), (503, True, "provider")])
 def test_error_mapping_includes_provider_message_without_key(status, transient, kind):
     payload = {"error": {"code": status, "status": "NOT_FOUND", "message": f"models/gemini-9 is not found; key={KEY}"}}
-    c = GeminiClient("gemini-9", KEY, http_client=mock([(status, payload)], []))
+    # a 400 on thinking budget 0 is resent once with the fallback budget (D65), so queue the error twice
+    c = GeminiClient("gemini-9", KEY, http_client=mock([(status, payload)] * 2, []))
     with pytest.raises(ModelError) as e:
         c.generate("S", HISTORY[:1], tool_specs(), max_output_tokens=256, timeout=5)
     assert e.value.transient is transient and e.value.kind == kind
@@ -116,13 +117,13 @@ def test_settings_require_key_and_model():
 def test_full_pipeline_with_recorded_gemini_responses(tmp_path):
     seen: list = []
     client = GeminiClient("gemini-2.5-flash", KEY, http_client=mock([
-        (200, fc_response("get_work_order", {"id": "WO-003"}, sig="S1")),
-        (200, fc_response("respond", {"kind": "answer", "text": "WO-003 is On Hold; next allowed status is Completed.", "citations": [], "missing": []})),
+        (200, fc_response("get_work_order", {"id": "WO-003"}, sig="S1")),  # plain lookup: rendered from the row (D65)
         (200, fc_response("update_status", {"id": "WO-003", "status": "Completed"})),
     ], seen))
     h = Harness(tmp_path, client)
     shown = h.say("Show WO-003")
-    assert shown["reply"]["verified"] and shown["reply"]["text"].startswith("WO-003 is On Hold")
+    assert shown["reply"]["verified"] and shown["reply"]["text"] == "WO-003 is On Hold. The next allowed status is Completed."
+    assert len(seen) == 1
     done = h.say("Mark it complete")
     assert done["outcome"] == "acted" and h.status("WO-003") == "Completed"
     assert all(r["headers"]["x-goog-api-key"] == KEY for r in seen)
@@ -138,3 +139,31 @@ def test_thinking_is_off_and_cannot_eat_the_reply_budget():
     assert THINKING_BUDGET == 0
     assert gen["thinkingConfig"] == {"thinkingBudget": 0}
     assert gen["maxOutputTokens"] == 1024 + THINKING_HEADROOM and THINKING_HEADROOM > 0
+
+
+def test_thinking_only_model_falls_back_once_to_minimal_budget():
+    # gemini-pro-latest / 3.1-pro reject budget 0 ("only works in thinking mode"); 3.5-flash-lite rejects it with a
+    # generic 400. The adapter retries once with THINKING_FALLBACK_BUDGET and keeps it for later calls.
+    from app.llm.gemini_native import THINKING_FALLBACK_BUDGET
+    seen: list = []
+    bad = (400, {"error": {"code": 400, "status": "INVALID_ARGUMENT",
+                           "message": "Budget 0 is invalid. This model only works in thinking mode."}})
+    ok = (200, fc_response("respond", {}))
+    c = GeminiClient("gemini-pro-latest", KEY, http_client=mock([bad, ok, ok], seen))
+    c.generate("S", HISTORY[:1], tool_specs(), max_output_tokens=1024, timeout=5)
+    c.generate("S", HISTORY[:1], tool_specs(), max_output_tokens=1024, timeout=5)
+    budgets = [r["body"]["generationConfig"]["thinkingConfig"]["thinkingBudget"] for r in seen]
+    assert budgets == [0, THINKING_FALLBACK_BUDGET, THINKING_FALLBACK_BUDGET]
+    assert 0 < THINKING_FALLBACK_BUDGET < THINKING_HEADROOM
+
+
+def test_400_is_retried_at_most_once_and_never_after_fallback():
+    seen: list = []
+    bad = (400, {"error": {"code": 400, "status": "INVALID_ARGUMENT", "message": "bad schema"}})
+    c = GeminiClient("gemini-3.8-flash", KEY, http_client=mock([bad, bad, bad], seen))
+    with pytest.raises(ModelError):
+        c.generate("S", HISTORY[:1], tool_specs(), max_output_tokens=1024, timeout=5)
+    assert len(seen) == 2  # budget 0, then the fallback budget: no loop
+    with pytest.raises(ModelError):
+        c.generate("S", HISTORY[:1], tool_specs(), max_output_tokens=1024, timeout=5)
+    assert len(seen) == 3  # already on the fallback budget: a 400 is final

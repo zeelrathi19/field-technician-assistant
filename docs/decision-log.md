@@ -10,6 +10,7 @@ Every decision in force, with the reasoning, the alternative that was rejected a
 | D60 | Cut to essentials (29 Sep 2026) |
 | D61–D63 | Live Gemini run (29 Sep 2026) |
 | D64 | Submission cleanup (29 Sep 2026) |
+| D65–D66 | Efficiency and reviewer keys (29 Sep 2026) |
 
 Summaries and tradeoffs only, never reasoning transcripts.
 
@@ -118,3 +119,10 @@ Evidence = test names in `backend/tests/` unless stated.
 | ID | Final choice | Why | Alternative / cost | Evidence |
 |---|---|---|---|---|
 | D64 | Removed the pre-build HTML guide (`docs/architecture-guide.html`, replaces D38) and the review-findings table in `docs/testing.md` (D53–D56 hold the same facts). README rewritten as the single entry point: quick start, usage, how it works, development, limitations. No code or behaviour change. | The guide was written before the build and still carried planning-era sections; `docs/architecture.md` describes the running system. One accurate doc per topic is easier to review. | The interactive scenario walkthrough is gone (it is in git history); the same scenarios are automated in `test_scenarios.py` | `make check`; link check over all docs |
+
+## Efficiency and reviewer keys (29 Sep 2026)
+
+| ID | Final choice | Why | Alternative / cost | Evidence |
+|---|---|---|---|---|
+| D65 | Plain lookups end after the read: the LLM still chooses `get_work_order` (assignment: "the LLM chooses actions using tool-call output"), but when the message is one ID plus only `intent.LOOKUP_WORDS` and the model read exactly that ID, the server renders one line from the row (`agent.lookup_text`) or the fixed refusal, and skips the second model call. | The second call only restated a row the card already shows. Live on `gemini-3.8-flash`: "Show WO-003" went from 2 calls / 4.2 s to 1 call / 1.8 s, ~3.2k fewer input tokens. The work-order notes (untrusted text) no longer reach the model on a plain lookup. | Fixed word list: "Tell me about WO-003" still takes two calls; anything with a question, action or negation keeps the normal loop | `test_plain_lookup_needs_one_model_call`, `test_plain_lookup_of_unavailable_order_refuses_in_one_call`, `test_lookup_shortcut_only_when_the_model_chose_the_read`, `test_lookup_shortcut_only_for_the_named_order`, `test_plain_lookup_is_a_fixed_word_list`, `test_S12b_plain_lookup_never_shows_the_injected_note_to_the_model`; S12 and C05 now use "Summarise …" so their attack paths still run |
+| D66 | Gemini thinking fallback: a 400 on `thinkingBudget: 0` is resent once with `THINKING_FALLBACK_BUDGET = 256`, which that client keeps; a 400 on the fallback is final. | Reviewers use their own key and may pick another model. `gemini-pro-latest` and `gemini-3.1-pro-preview` reject budget 0 ("only works in thinking mode"), `gemini-3.5-flash-lite` rejects it with a generic 400; every one of them failed every turn. 256 is accepted by all listed models and stays inside `THINKING_HEADROOM` (live thoughts ≤178). | One extra request the first time per client on such models; a generic 400 for another reason also costs one extra request before failing | `test_thinking_only_model_falls_back_once_to_minimal_budget`, `test_400_is_retried_at_most_once_and_never_after_fallback`; live `make smoke` 9/9 on `gemini-pro-latest` and `gemini-3.5-flash-lite` |

@@ -1,7 +1,7 @@
 import pytest
 
 from app.domain import ErrorCode, Status
-from app.intent import IntentGuard, TurnFacts, action_categories, extract_ids, grounded_ratio, strip_payload
+from app.intent import IntentGuard, TurnFacts, action_categories, extract_ids, grounded_ratio, is_plain_lookup, strip_payload
 from app.tools import ToolDispatcher
 
 g, d = IntentGuard(), ToolDispatcher()
@@ -72,3 +72,16 @@ def test_payload_grounding():
 def test_payload_words_do_not_count_as_commands():
     msg = "Add a note to WO-002: customer asked us to escalate billing and mark it complete"
     assert action_categories(strip_payload(msg, "customer asked us to escalate billing and mark it complete")) == {"note"}
+
+
+@pytest.mark.parametrize("message,expected", [
+    ("Show WO-003", True), ("WO-003", True), ("what's the status of wo-003?", True),
+    ("Can you pull up the details for WO 003 please", True),
+    ("Don't show WO-003", False),                    # negation
+    ("Show WO-003 and WO-001", False),                # two orders
+    ("Show WO-003 and mark it complete", False),      # an action
+    ("Should I finish WO-003 today?", False),         # a question needing the model
+    ("Show it", False),                               # no explicit ID
+])
+def test_plain_lookup_is_a_fixed_word_list(message, expected):
+    assert is_plain_lookup(message, extract_ids(message)) is expected

@@ -26,7 +26,7 @@ from .config import Settings
 from .db import Database, dumps, fetch_work_order, utcnow
 from .domain import ErrorCode, Status, ToolResult
 from .grounding import AnswerVerifier, Evidence, VerifiedReply
-from .intent import IntentGuard, TurnFacts, action_categories, tokens
+from .intent import IntentGuard, TurnFacts, action_categories, is_plain_lookup, tokens
 from .knowledge import KnowledgeBase
 from .llm.base import ModelClient, ModelError, ModelMessage
 from .memory import ContextBuilder, SessionState, SessionStore, resolve_focus
@@ -68,6 +68,13 @@ class TurnOutcome:
     missing: list[str] = field(default_factory=list)
     verified: bool = True
     kind: str = ""
+
+
+def lookup_text(wo: dict[str, Any]) -> str:
+    """One line rendered from the database row; the card beside it shows the rest."""
+    nxt = wo.get("allowedNextStatus")
+    after = f"The next allowed status is {nxt}." if nxt else "No further status changes are allowed."
+    return f"{wo['id']} is {wo['status']}. {after}"
 
 
 def _hash(message: str) -> str:
@@ -280,6 +287,13 @@ class ChatService:
                         read_ids.append(result.data["id"])
                     else:
                         evidence.tool_data.append({"id": parsed.target_id, "available": False})
+                    if (len(to_run) == 1 and res.explicit_ids == [parsed.target_id]
+                            and is_plain_lookup(message, res.explicit_ids)):
+                        # The model chose the read; restating the row would only cost a second call (D65).
+                        counters.codes.append("LOOKUP_RENDERED")
+                        if result.ok and result.data:
+                            return done(TurnOutcome("answered", lookup_text(result.data), cards=cards, kind="lookup"))
+                        return done(TurnOutcome("refused", self.verifier.refusal(evidence), cards=cards, kind="refuse"))
                     msgs.append(ModelMessage(role="tool", content=dump_result(result), tool_call_id=call.id,
                                              tool_name=call.name))
                     continue
