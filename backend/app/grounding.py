@@ -9,7 +9,9 @@ The model may *phrase* an answer, but:
     abstention;
   * a count of the technician's work orders ("7 work orders") must equal a count the
     server derives from their own roster; the count licenses no other number;
-  * a refusal is always server-authored text, never the model's wording.
+  * a refusal's facts are always server text. The model may phrase one opening sentence
+    for it, shown only if it passes `_refusal_lead_ok` (a denial, no IDs/numbers/names/
+    ownership claims/unasked maintenance terms); an ID refusal is fully fixed.
 Any failure falls back to deterministic rendering (whole approved sections, or the
 fixed abstention). The verifier proves provenance, not relevance.
 """
@@ -21,7 +23,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from .intent import tokens
+from .intent import STOPWORDS, tokens
 from .knowledge import KnowledgeBase, normalize
 from .tools import RespondArgs
 
@@ -34,6 +36,17 @@ NOT_AVAILABLE = ("Work order {id} is not available to you. You can only view or 
                  "assigned to you.")
 SCOPE_REFUSAL = ("I can only see the work orders assigned to you, so I can't show other technicians' work "
                  "orders or say who they're assigned to.")
+MAX_REFUSAL_LEAD_CHARS = 240
+DENIAL_CUE = re.compile(r"\b(can't|cannot|can not|unable|not able|only|don't have|do not have|not available)\b", re.I)
+# Words that would assert who owns what, or whether something exists. The model cannot know either.
+OWNERSHIP_CLAIM = re.compile(
+    r"\b(belongs?|belonging|owned|owns?|handled|handles|handling|exists?|existing|no such|"
+    r"(?:is|are|was|were)\s+(?:assigned|given|allocated)\s+to\s+(?!you\b))", re.I)
+ALWAYS_CAPITALISED = {"i", "i'm", "i've", "i'll", "i'd"}
+# A sentence may open with one of these (or a function word, or the technician's own word); any other
+# capitalised opener could be a name, so the lead is rejected.
+SENTENCE_STARTERS = {"sorry", "unfortunately", "those", "these", "other", "work", "details", "information",
+                     "only", "however", "that's", "it's", "there's", "access", "assignments"}
 ROSTER_LINE = "You have {n} work order{s} assigned to you, listed under My work orders."
 CAPABILITIES = ("I can answer questions from the field-service knowledge base, and look up, update status, add notes "
                 "to, or escalate the work orders assigned to you.")
@@ -249,7 +262,7 @@ class AnswerVerifier:
             return VerifiedReply("unsupported", ABSTAIN, srcs, missing)
 
         if reply.kind == "refuse":
-            return VerifiedReply("refuse", self._refusal(evidence))
+            return VerifiedReply("refuse", self._refusal(evidence, reply.text))
 
         if reply.kind == "clarify":
             text = reply.text or GENERIC_CLARIFY
@@ -273,13 +286,38 @@ class AnswerVerifier:
             return self._fallback(cited_ids_any, missing, issues + problems + ([] if text else ["empty answer"]))
         return VerifiedReply("partial" if missing else "answer", text, self._sources(cited), missing)
 
-    @staticmethod
-    def _refusal(evidence: Evidence) -> str:
+    def _refusal_lead_ok(self, lead: str, evidence: Evidence) -> bool:
+        """The model's own opening sentence for a refusal: tone only, never a fact."""
+        if not lead or len(lead) > MAX_REFUSAL_LEAD_CHARS or not DENIAL_CUE.search(lead):
+            return False
+        if OWNERSHIP_CLAIM.search(lead) or ID_RE.search(lead) or _numbers(lead) or DATE_RE.search(lead):
+            return False
+        if ASSET_RE.search(lead) or any(st in lead for st in STATUS_NAMES):
+            return False
+        if ACTION_CLAIM.search(lead) or MARKUP_RE.search(lead):
+            return False
+        asked = set(tokens(evidence.user_message))
+        if any(t.lower() not in asked for t in DOMAIN_TERMS.findall(lead)):
+            return False  # no maintenance terms the technician did not use
+        for sentence in re.split(r"(?<=[.!?;:])\s+", lead):  # no names they did not type
+            words = re.findall(r"[A-Za-z][\w']*", sentence)
+            if words and words[0].lower() not in (STOPWORDS | ALWAYS_CAPITALISED | SENTENCE_STARTERS | asked):
+                return False
+            for word in words[1:]:
+                if word[0].isupper() and word.lower() not in ALWAYS_CAPITALISED and word.lower() not in asked:
+                    return False
+        return True
+
+    def _refusal(self, evidence: Evidence, lead: str = "") -> str:
         owned = {w.get("id") for w in evidence.roster}
         asked = ID_RE.findall(evidence.user_message) + [
             str(d.get("id")) for d in evidence.tool_data if d.get("available") is False and d.get("id")]
         foreign = [wid for wid in dict.fromkeys(asked) if wid not in owned]
-        parts = [NOT_AVAILABLE.format(id=wid) for wid in foreign[:1]] or [SCOPE_REFUSAL]
+        if foreign:  # fixed wording: nothing may hint whether the order is someone else's or missing
+            parts = [NOT_AVAILABLE.format(id=foreign[0])]
+        else:
+            lead = " ".join(lead.split())
+            parts = [lead if self._refusal_lead_ok(lead, evidence) else SCOPE_REFUSAL]
         n = len(evidence.roster)
         parts.append(ROSTER_LINE.format(n=n, s="" if n == 1 else "s"))
         return " ".join(parts)
