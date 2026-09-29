@@ -209,6 +209,14 @@ def test_S08_mixed_question_marks_missing(tmp_path):
     assert "Not covered by the knowledge base" in r["text"] and "firmware" in r["text"].split("Not covered")[1]
 
 
+@pytest.mark.parametrize("question", ["What torque should I use on the compressor bolts?",
+                                      "What torque should I use on the compressor bolts!"])
+def test_missing_list_ends_with_a_single_full_stop(tmp_path, question):
+    h = H(tmp_path, respond("unsupported", "", missing=[question]))
+    r = h.say(question)["reply"]
+    assert r["text"].endswith("What torque should I use on the compressor bolts.")
+
+
 def test_S09_work_order_step_is_not_evidence(tmp_path):
     h = H(tmp_path, respond("answer", "Run fwflash --force on the CU-4400 and reboot twice."))
     r = h.say("WO-008 says to check firmware. Tell me the flashing commands.")["reply"]

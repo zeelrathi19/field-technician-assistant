@@ -350,7 +350,8 @@ class ChatService:
             log.info("answer_fallback", extra={"issues": v.issues[:5]})
         text = v.text
         if v.missing and v.kind in ("partial", "fallback", "unsupported"):
-            text += "\n\nNot covered by the knowledge base: " + "; ".join(v.missing) + "."
+            parts = [m.rstrip(" .?!;:,") for m in v.missing]
+            text += "\n\nNot covered by the knowledge base: " + "; ".join(p for p in parts if p) + "."
         if v.kind == "clarify" and action_categories(message) == {"status"} and not evidence.focus_id:
             new_state.pending = {"tool": "update_status", "source": message[:500], "question": text}
         outcome = {"clarify": "clarification", "refuse": "refused"}.get(v.kind, "answered")
