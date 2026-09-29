@@ -58,13 +58,13 @@ Scenario tests use `ScriptedModel` to play a **hostile** model: one that propose
 | Browser: demo flow, reload persistence, mobile reflow, axe WCAG 2.1 AA (light, dark, mobile), keyboard | `make e2e` | **5 passed**, 0 axe violations |
 | TypeScript typecheck + production build | `make typecheck`, `make build-ui` | pass |
 | Secret scan of tracked files | `make secrets` | clean |
-| Live LLM smoke (Gemini) | `make smoke` | **9/9 passed** — provider `gemini`, model `gemini-3.8-flash`, 29 Sep 2026, owner's machine, ~2 s per turn (live, not scripted) |
+| Live LLM smoke (Gemini) | `make smoke` | **9/9 passed** live (not scripted): provider `gemini`, model `gemini-3.8-flash`, owner's machine, ~2 s per turn; needed thinking off (D61) |
 
-Latest run: 29 Sep 2026, after D60. The Docker image build is covered by CI on push.
+Latest run: 29 Sep 2026, after D61. The Docker image build is covered by CI on push.
 
 ## Continuous integration
 
-GitHub Actions on the private repo `zeelrathi19/field-technician-assistant`, run 36476263349 (first push). It ran `make setup` → `make check` → Playwright install → `make e2e` → **`docker compose build`**, all green on a clean Ubuntu runner. Every later push re-runs the same job.
+GitHub Actions on the private repo `zeelrathi19/field-technician-assistant`. Each push runs `make setup` → `make check` → Playwright install → `make e2e` → **`docker compose build`**, on a clean Ubuntu runner; the Actions tab shows the current result.
 
 ## Requirement coverage (R1–R11)
 
@@ -97,11 +97,7 @@ GitHub Actions on the private repo `zeelrathi19/field-technician-assistant`, run
 
 ## Still open
 
-1. ~~**Live LLM behaviour.**~~ **Closed 29 Sep 2026:** `make smoke` passed **9/9** live with provider `gemini`, model `gemini-3.8-flash` (AI Studio `AQ.` key, owner's machine). Getting there:
-   - `gemini-2.5-flash` is still listed for the key but returns 404 "no longer available to new users", so `MODEL_NAME` moved to `gemini-3.8-flash`.
-   - A 402 `RESOURCE_EXHAUSTED` (prepaid credits depleted) was a billing issue, fixed by the owner in AI Studio.
-   - First run on 3.8-flash was 6/9: the KB answer, `add_note` and partial-coverage turns ended in `MALFORMED_FUNCTION_CALL`, because default thinking (~1000–1600 tokens) consumed the 1024-token output budget. Fixed in the adapter by switching thinking off in code (D61), then 9/9 at ~2 s per turn.
-2. **`docker compose up` smoke on the owner's machine.** The image build is verified in CI; the container runtime health check has not been observed end to end.
+1. **`docker compose up` smoke on the owner's machine.** The image build is verified in CI; the container runtime health check has not been observed end to end.
 
 ## Known limits (by design)
 
