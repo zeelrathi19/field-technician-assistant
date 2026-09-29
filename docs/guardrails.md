@@ -38,6 +38,8 @@ Every turn that doesn't write ends with the model's `respond{kind, text, citatio
 - **Status claims:** a claim about an order ("WO-003 is done") must match *that order's* current status.
 - **No claimed actions:** text like "I've marked…" or "note added" is rejected, because a `respond` turn never writes.
 - **No markup:** no HTML or markdown links/images.
+- **Work-order counts:** "N work orders" must equal a count the server derives from the technician's own list (total or per status). The count licenses no other number in the text.
+- **Refusals are server text:** for `kind=refuse` the model's wording is discarded. An unowned or unknown ID gets the service's public "not available to you" message (identical for both); anything else about other technicians gets a fixed scope refusal. Both end with the technician's own order count.
 - **No evidence:** an answer with maintenance content but no evidence becomes the fixed abstention. Only short small talk passes.
 
 When a check fails, the UI shows the whole cited section ("Exact source text"). With no valid section, it shows "The knowledge base doesn't cover that…". Reset and filter procedures always get the lockout/tagout section attached.

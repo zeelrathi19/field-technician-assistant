@@ -61,7 +61,7 @@ All object schemas set `additionalProperties: false` and list every property as 
 | `update_status` | `id`, `status` ∈ `Open`, `In Progress`, `On Hold`, `Completed` | One legal step |
 | `add_note` | `id`, `text` (1–`MAX_NOTE_CHARS`) | Append a note (actor and time set by the server) |
 | `escalate` | `id`, `reason` (1–`MAX_REASON_CHARS`) | Set the escalation flag and record the reason; status unchanged |
-| `respond` | `kind` ∈ `answer`, `clarify`, `unsupported`, `refuse`; `text` (≤1200); `citations[≤6]{section_id, quote}`; `missing[≤5]` | Ends the turn; checked by AnswerVerifier; **never executes anything** |
+| `respond` | `kind` ∈ `answer`, `clarify`, `unsupported`, `refuse`; `text` (≤1200); `citations[≤6]{section_id, quote}`; `missing[≤5]` | Ends the turn; checked by AnswerVerifier; **never executes anything**. For `refuse` only the kind is used; the server writes the text |
 
 Raw arguments are limited to 8 KB. Duplicate JSON keys and NaN/Infinity are rejected.
 
