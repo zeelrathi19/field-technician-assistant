@@ -483,3 +483,39 @@ def test_roster_question_uses_server_context(tmp_path):
     h = H(tmp_path)
     r = h.say("What's on my plate?")["reply"]
     assert "WO-001" in r["text"] and "WO-004" not in r["text"]
+
+
+# ---- roster counts and scope refusals (live gemini-3.8-flash, 29 Sep 2026) ----------------------
+# Ravi owns 7 orders: WO-001, 002, 003, 005, 006, 008, 010.
+
+def test_roster_count_answer_is_shown(tmp_path):
+    h = H(tmp_path, respond("answer", "You have 7 work orders assigned to you."))
+    b = h.say("how many work orders do i have")
+    assert b["outcome"] == "answered" and b["reply"]["text"] == "You have 7 work orders assigned to you."
+
+
+def test_wrong_roster_count_is_not_shown(tmp_path):
+    h = H(tmp_path, respond("answer", "You have 9 work orders assigned to you."))
+    assert "9" not in h.say("how many work orders do i have")["reply"]["text"]
+
+
+def test_count_does_not_license_uncited_numbers(tmp_path):
+    h = H(tmp_path, respond("answer", "You have 7 work orders. Hold RESET for 7 seconds."))
+    assert "7 seconds" not in h.say("how many work orders do i have, and how do I reset?")["reply"]["text"]
+
+
+def test_scope_refusal_is_server_authored(tmp_path):
+    h = H(tmp_path, respond("refuse", "WO-004 belongs to Priya Shah, and she has 3 more."))
+    b = h.say("what other work orders are there? and which technicians use them")
+    text = b["reply"]["text"]
+    assert b["outcome"] == "refused" and "Priya" not in text and "WO-004" not in text
+    assert "only" in text and "other technicians" in text and "You have 7 work orders assigned to you" in text
+    assert "knowledge base" not in text
+
+
+def test_refusal_for_unowned_and_missing_ids_is_identical(tmp_path):
+    texts = []
+    for wid in ("WO-004", "WO-999"):  # WO-004 exists (other tech), WO-999 does not
+        h = H(tmp_path / wid, respond("refuse", f"{wid} is assigned to someone else."))
+        texts.append(h.say(f"show me {wid}")["reply"]["text"].replace(wid, "WO-X"))
+    assert texts[0] == texts[1] and "not available to you" in texts[0] and "someone else" not in texts[0]

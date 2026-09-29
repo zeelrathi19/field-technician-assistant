@@ -8,7 +8,7 @@ Every decision in force, with the reasoning, the alternative that was rejected a
 | D41–D49 | Implementation (29 Sep 2026) |
 | D53–D59 | Review, Gemini provider (29 Sep 2026) |
 | D60 | Cut to essentials (29 Sep 2026) |
-| D61 | Live Gemini run (29 Sep 2026) |
+| D61–D62 | Live Gemini run (29 Sep 2026) |
 
 Summaries and tradeoffs only, never reasoning transcripts.
 
@@ -110,3 +110,4 @@ Evidence = test names in `backend/tests/` unless stated.
 | ID | Final choice | Why | Alternative / cost | Evidence |
 |---|---|---|---|---|
 | D61 | Gemini thinking is off, hardcoded in `gemini_native.py`: `THINKING_BUDGET = 0` in `thinkingConfig`, and a fixed `THINKING_HEADROOM = 512` added to `maxOutputTokens` so `max_output_tokens` stays the reply budget. Not configurable via `.env` or the prompt. | Tool choice and answers are checked deterministically server-side, so the model does not need long reasoning. Gemini counts thought tokens against `maxOutputTokens`; on `gemini-3.8-flash` default thinking used ~1000–1600 tokens and truncated the call (`MALFORMED_FUNCTION_CALL`, smoke 6/9). 3.x flash still emits ~200 thought tokens at budget 0 (`thinkingLevel: minimal` is rejected), hence the headroom. | Slightly higher max token spend per call (headroom), unused in practice; a model that cannot run at budget 0 would need a new adapter decision | `test_thinking_is_off_and_cannot_eat_the_reply_budget`; live `make smoke` 9/9 on `gemini-3.8-flash`, ~2 s per turn (was 2–11 s) |
+| D62 | Deterministic roster counts and refusals in `AnswerVerifier`: "N work orders" is checked against counts derived from the technician's own roster (and licenses no other number); `respond kind=refuse` renders fixed server text: the service's public "not available to you" message for an unowned/unknown ID, otherwise a scope refusal, plus the technician's own count. | Live on `gemini-3.8-flash`, "how many work orders do I have" was answered correctly (7) but rejected (`unsupported number 7`) and replaced by the KB abstention; "what other work orders are there… which technicians" was sometimes classed `unsupported`, so the reply blamed the knowledge base, with model-chosen wording otherwise. | The model still picks the kind; a count phrased another way ("2 are on hold") falls back rather than being shown | `test_roster_count_answer_is_shown`, `test_wrong_roster_count_is_not_shown`, `test_count_does_not_license_uncited_numbers`, `test_scope_refusal_is_server_authored`, `test_refusal_for_unowned_and_missing_ids_is_identical` |

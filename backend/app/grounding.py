@@ -6,7 +6,10 @@ The model may *phrase* an answer, but:
     the answer must appear in the evidence (cited sections, this turn's tool
     results, the technician's own roster, or the technician's own message);
   * an answer with maintenance content but no evidence is replaced by a fixed
-    abstention.
+    abstention;
+  * a count of the technician's work orders ("7 work orders") must equal a count the
+    server derives from their own roster; the count licenses no other number;
+  * a refusal is always server-authored text, never the model's wording.
 Any failure falls back to deterministic rendering (whole approved sections, or the
 fixed abstention). The verifier proves provenance, not relevance.
 """
@@ -25,6 +28,13 @@ from .tools import RespondArgs
 ABSTAIN = "The knowledge base doesn't cover that, so I can't give you an answer or procedure for it. I won't guess."
 UNVERIFIED = ("I couldn't verify a summary against the approved sources, so here is the exact knowledge-base text instead.")
 GENERIC_CLARIFY = "Could you tell me which work order (for example WO-003) and what you'd like me to do?"
+# Refusals are fixed server text. Unowned and missing IDs get the service's public wording, so
+# nothing distinguishes "another technician's order" from "no such order".
+NOT_AVAILABLE = ("Work order {id} is not available to you. You can only view or act on work orders "
+                 "assigned to you.")
+SCOPE_REFUSAL = ("I can only see the work orders assigned to you, so I can't show other technicians' work "
+                 "orders or say who they're assigned to.")
+ROSTER_LINE = "You have {n} work order{s} assigned to you, listed under My work orders."
 CAPABILITIES = ("I can answer questions from the field-service knowledge base, and look up, update status, add notes "
                 "to, or escalate the work orders assigned to you.")
 
@@ -62,6 +72,12 @@ _STATUS_ALT = "|".join(f"(?P<s{i}>{rx})" for i, rx in enumerate(STATUS_WORDS.val
 STATUS_CLAIM = re.compile(
     r"\b(?:is|are|was|were|has been|have been|now|already|marked(?: as)?|set to|moved to|changed to|updated to)"
     r"\s+(?:now\s+|already\s+|currently\s+|still\s+|been\s+)?(?:status\s+)?(?:" + _STATUS_ALT + r")\b", re.I)
+# "7 work orders", "seven open work orders", "3 orders on hold" — a count of the technician's orders.
+_NUM_TOKEN = r"\d+|" + "|".join(sorted(("zero one two three four five six seven eight nine ten eleven twelve "
+                                         "fifteen twenty").split(), key=len, reverse=True))
+COUNT_CLAIM = re.compile(
+    r"\b(?P<n>" + _NUM_TOKEN + r")\s+(?:(?:assigned|active|open|total|current|other|of\s+your|in[- ]progress|"
+    r"on[- ]hold|completed)\s+){0,3}(?:work\s+)?orders?\b", re.I)
 HEDGE = re.compile(r"\b(next|allowed|only|can|could|would|should|cannot|can't|must|if|once|after|before|until|to be)\b", re.I)
 # The respond tool never follows a write (a write ends the turn), so any claim of having acted is false.
 ACTION_CLAIM = re.compile(
@@ -77,6 +93,13 @@ class Evidence:
     tool_data: list[dict[str, Any]] = field(default_factory=list)
     roster: list[dict[str, Any]] = field(default_factory=list)
     focus_id: str | None = None
+
+    def roster_counts(self) -> set[str]:
+        """Counts the server can prove from the technician's own roster: total and per status."""
+        counts = {len(self.roster)}
+        for status in {w.get("status") for w in self.roster}:
+            counts.add(sum(w.get("status") == status for w in self.roster))
+        return {str(n) for n in counts}
 
     def text(self, include_user: bool = True) -> str:
         parts = [json.dumps(self.tool_data), json.dumps(self.roster), self.focus_id or ""]
@@ -155,8 +178,20 @@ class AnswerVerifier:
                     issues.append(f"status claim {wid}={claimed} contradicts {known[wid]}")
         return issues
 
-    def _claims_ok(self, text: str, allowed: str, evidence: "Evidence | None" = None) -> list[str]:
+    @staticmethod
+    def _count_claims(text: str, evidence: "Evidence | None") -> tuple[str, list[str]]:
+        """Check "N work orders" against roster counts; return the text with those claims removed."""
         issues = []
+        proven = evidence.roster_counts() if evidence is not None else set()
+        for m in COUNT_CLAIM.finditer(text):
+            n = m.group("n").lower()
+            n = NUMBER_WORDS.get(n, n)
+            if n not in proven:
+                issues.append(f"work-order count {n} not in roster counts")
+        return COUNT_CLAIM.sub(" ", text), issues
+
+    def _claims_ok(self, text: str, allowed: str, evidence: "Evidence | None" = None) -> list[str]:
+        text, issues = self._count_claims(text, evidence)
         for code in set(ASSET_RE.findall(text)):
             if code not in allowed:
                 issues.append(f"unknown asset code {code}")
@@ -213,17 +248,19 @@ class AnswerVerifier:
             srcs = self._sources(cited) if cited else []
             return VerifiedReply("unsupported", ABSTAIN, srcs, missing)
 
-        if reply.kind in ("clarify", "refuse"):
+        if reply.kind == "refuse":
+            return VerifiedReply("refuse", self._refusal(evidence))
+
+        if reply.kind == "clarify":
             text = reply.text or GENERIC_CLARIFY
             problems = self._claims_ok(text, allowed, evidence)
             if problems:
-                return VerifiedReply(reply.kind, GENERIC_CLARIFY if reply.kind == "clarify" else CAPABILITIES,
-                                     issues=problems)
-            return VerifiedReply(reply.kind, text, self._sources(cited) if cited else [])
+                return VerifiedReply("clarify", GENERIC_CLARIFY, issues=problems)
+            return VerifiedReply("clarify", text, self._sources(cited) if cited else [])
 
         # kind == "answer"
         text = reply.text
-        has_tool_evidence = bool(evidence.tool_data) or bool(
+        has_tool_evidence = bool(evidence.tool_data) or bool(COUNT_CLAIM.search(text)) or bool(
             set(ID_RE.findall(text)) & set(ID_RE.findall(evidence.text(include_user=False))))
         if not cited and not has_tool_evidence:
             if cited_ids_any or issues:
@@ -235,6 +272,17 @@ class AnswerVerifier:
         if problems or issues or not text:
             return self._fallback(cited_ids_any, missing, issues + problems + ([] if text else ["empty answer"]))
         return VerifiedReply("partial" if missing else "answer", text, self._sources(cited), missing)
+
+    @staticmethod
+    def _refusal(evidence: Evidence) -> str:
+        owned = {w.get("id") for w in evidence.roster}
+        asked = ID_RE.findall(evidence.user_message) + [
+            str(d.get("id")) for d in evidence.tool_data if d.get("available") is False and d.get("id")]
+        foreign = [wid for wid in dict.fromkeys(asked) if wid not in owned]
+        parts = [NOT_AVAILABLE.format(id=wid) for wid in foreign[:1]] or [SCOPE_REFUSAL]
+        n = len(evidence.roster)
+        parts.append(ROSTER_LINE.format(n=n, s="" if n == 1 else "s"))
+        return " ".join(parts)
 
     def _fallback(self, section_ids: list[str], missing: list[str], issues: list[str]) -> VerifiedReply:
         valid = [s for s in dict.fromkeys(section_ids) if self.kb.get(s)]
