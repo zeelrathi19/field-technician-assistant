@@ -54,11 +54,11 @@ Scenario tests use `ScriptedModel` to play a **hostile** model: one that propose
 
 | Check | Command | Result |
 |---|---|---|
-| Backend: domain, service, tools, knowledge, intent, grounding, 50+ scenarios, review regressions, API, adapters | `make test` | **252 passed** |
+| Backend: domain, service, tools, knowledge, intent, grounding, 50+ scenarios, review regressions, API, adapters | `make test` | **271 passed** |
 | Browser: demo flow, reload persistence, mobile reflow, axe WCAG 2.1 AA (light, dark, mobile), keyboard | `make e2e` | **5 passed**, 0 axe violations |
 | TypeScript typecheck + production build | `make typecheck`, `make build-ui` | pass |
 | Secret scan of tracked files | `make secrets` | clean |
-| Live LLM smoke (Gemini) | `make smoke` | **9/9 passed** live (not scripted): provider `gemini`, model `gemini-3.8-flash`, owner's machine, ~2 s per turn; needed thinking off (D61) |
+| Live LLM smoke (Gemini) | `make smoke` | **9/9 passed** live (not scripted) on the owner's machine with provider `gemini` and each of `gemini-3.8-flash` (~2 s per turn; thinking off, D61), `gemini-pro-latest` and `gemini-3.5-flash-lite` (both thinking-only: fallback budget, D66). "Show WO-003" takes 1 model call (D65) |
 
 Latest run: 29 Sep 2026, after D63. The Docker image build is covered by CI on push.
 

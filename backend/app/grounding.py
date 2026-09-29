@@ -262,7 +262,7 @@ class AnswerVerifier:
             return VerifiedReply("unsupported", ABSTAIN, srcs, missing)
 
         if reply.kind == "refuse":
-            return VerifiedReply("refuse", self._refusal(evidence, reply.text))
+            return VerifiedReply("refuse", self.refusal(evidence, reply.text))
 
         if reply.kind == "clarify":
             text = reply.text or GENERIC_CLARIFY
@@ -308,7 +308,7 @@ class AnswerVerifier:
                     return False
         return True
 
-    def _refusal(self, evidence: Evidence, lead: str = "") -> str:
+    def refusal(self, evidence: Evidence, lead: str = "") -> str:
         owned = {w.get("id") for w in evidence.roster}
         asked = ID_RE.findall(evidence.user_message) + [
             str(d.get("id")) for d in evidence.tool_data if d.get("available") is False and d.get("id")]
