@@ -10,7 +10,6 @@ dependencies = [
   "pydantic-settings>=2.4,<3",
   "httpx>=0.27,<1",
   "openai>=1.40",
-  "anthropic>=0.40",
 ]
 
 [dependency-groups]

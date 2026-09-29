@@ -26,5 +26,5 @@ def configure(level: str) -> None:
     root.handlers[:] = [handler]
     root.setLevel(level)
     root.propagate = False
-    for noisy in ("httpx", "openai", "anthropic"):
+    for noisy in ("httpx", "openai"):
         logging.getLogger(noisy).setLevel(logging.WARNING)

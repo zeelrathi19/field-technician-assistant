@@ -13,6 +13,5 @@ logs/
 *.db
 ASSIGNMENT.pdf
 *.pdf
-.agents/
 docs/
 e2e/
