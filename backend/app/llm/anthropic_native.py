@@ -9,6 +9,7 @@ import anthropic
 
 
 from .base import ModelDecision, ModelError, ModelMessage, ModelUsage, ToolCall
+from .errors import detail
 
 
 class AnthropicClient:
@@ -76,10 +77,10 @@ class AnthropicClient:
                 anthropic.InternalServerError) as exc:
             raise ModelError(type(exc).__name__, transient=True) from exc
         except anthropic.AuthenticationError as exc:
-            raise ModelError("provider authentication failed (check MODEL_API_KEY)", transient=False, kind="config") from exc
+            raise ModelError(f"provider authentication failed, check MODEL_API_KEY ({detail(exc)})", transient=False, kind="config") from exc
         except (anthropic.BadRequestError, anthropic.NotFoundError, anthropic.PermissionDeniedError,
                 anthropic.UnprocessableEntityError) as exc:
-            raise ModelError(f"provider rejected request: {type(exc).__name__}", transient=False, kind="config") from exc
+            raise ModelError(f"provider rejected request: {type(exc).__name__} ({detail(exc)})", transient=False, kind="config") from exc
         except anthropic.APIStatusError as exc:
             raise ModelError(type(exc).__name__, transient=exc.status_code >= 500) from exc
         calls = tuple(ToolCall(id=b.id, name=b.name, arguments=json.dumps(b.input))

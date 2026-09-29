@@ -16,6 +16,9 @@ def build_model(settings: Settings, kb: KnowledgeBase) -> ModelClient:
     if settings.model_provider == "anthropic":
         from .anthropic_native import AnthropicClient
         return AnthropicClient(settings.model_name, key, settings.model_base_url, settings.model_temperature)
+    if settings.model_provider == "gemini":
+        from .gemini_native import GeminiClient
+        return GeminiClient(settings.model_name, key, settings.model_base_url, settings.model_temperature)
     if settings.model_provider == "codex":
         from .codex_cli import CodexCLIClient
         if not CodexCLIClient.available(settings.codex_bin):

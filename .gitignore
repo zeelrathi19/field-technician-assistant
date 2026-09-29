@@ -22,3 +22,4 @@ ASSIGNMENT.pdf
 
 # agentctl fallback state when not in a git repo
 .agents/.local/
+*.tsbuildinfo

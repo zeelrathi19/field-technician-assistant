@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(REPO_ROOT / ".env", ".env"), env_file_encoding="utf-8", extra="ignore")
 
     # Model provider
-    model_provider: Literal["openai", "anthropic", "codex", "offline"] = "offline"
+    model_provider: Literal["openai", "anthropic", "gemini", "codex", "offline"] = "offline"
     model_name: str = ""
     model_api_key: SecretStr = SecretStr("")
     model_base_url: str = ""  # OpenAI-compatible endpoints (Gemini, Groq, OpenRouter, Ollama, vLLM ...)
@@ -57,7 +57,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check_provider(self) -> "Settings":
-        if self.model_provider in ("openai", "anthropic"):
+        if self.model_provider in ("openai", "anthropic", "gemini"):
             if not self.model_name.strip():
                 raise ValueError(f"MODEL_NAME is required for MODEL_PROVIDER={self.model_provider}")
             local_compat = self.model_provider == "openai" and self.model_base_url.startswith(

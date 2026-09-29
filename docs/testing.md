@@ -23,7 +23,7 @@ For e2e, Chromium comes from `uv run playwright install chromium`, or from `PLAY
 | Scenarios | `test_scenarios.py` | The acceptance list below, through HTTP and the full loop |
 | Review regressions | `test_review_policy.py`, `test_review_runtime.py` | Flaws found in the 29 Sep review (see decision log D53–D56) |
 | HTTP | `test_api.py` | Cookie scoping; Origin; 404/409/413/422; receipts; busy session |
-| Adapters | `test_adapters.py`, `test_codex.py` | OpenAI/Anthropic request and response shapes and error mapping; Codex sandbox argv, output parsing, and a full run through a fake `codex` binary |
+| Adapters | `test_adapters.py`, `test_adapters_gemini.py`, `test_codex.py` | OpenAI/Anthropic/Gemini request and response shapes and error mapping; Gemini header auth and thought-signature replay; Codex sandbox argv, output parsing, and a full run through a fake `codex` binary |
 | Agent tooling | `tools/tests/test_agentctl.py` | Claims across worktrees; overlap; deps; stale takeover; check-paths; adapters |
 | Browser | `e2e/test_browser.py`, `e2e/test_accessibility.py` | Real UI against the running server |
 

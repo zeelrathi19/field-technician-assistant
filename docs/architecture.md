@@ -58,7 +58,7 @@ flowchart LR
 | `backend/app/knowledge.py` | Knowledge sections `kb-1`…`kb-5`, hashes, verbatim-quote matching |
 | `backend/app/memory.py` | Session state, focus resolution, history window, server context |
 | `backend/app/agent.py` | The turn loop, idempotency, session locks, receipts |
-| `backend/app/llm/` | `ModelClient` protocol with adapters: `openai_compat`, `anthropic_native`, `codex_cli`, `offline`, `scripted` (tests) |
+| `backend/app/llm/` | `ModelClient` protocol with adapters: `openai_compat`, `anthropic_native`, `gemini_native`, `codex_cli`, `offline`, `scripted` (tests) |
 | `backend/app/prompts/v1/system.txt` | The only prompt, loaded through a versioned registry |
 | `backend/app/api.py`, `main.py` | HTTP routes, browser-session cookie, Origin check, 64 KB body limit, SPA serving |
 | `frontend/src/` | `App.tsx` (session, retries), `components/` (messages, composer, work-order panel) |
@@ -84,6 +84,7 @@ flowchart LR
 |---|---|---|
 | `openai` (+ any OpenAI-compatible `MODEL_BASE_URL`) | `openai_compat.py` | `tool_choice="required"`, `parallel_tool_calls=false`, `strict` (dropped for `MODEL_COMPAT=generic`) |
 | `anthropic` | `anthropic_native.py` | `tool_choice={type: any, disable_parallel_tool_use: true}` |
+| `gemini` | `gemini_native.py` | `functionCallingConfig.mode=ANY` + `allowedFunctionNames`; thought signatures replayed |
 | `codex` | `codex_cli.py` | `codex exec --sandbox read-only --output-schema` forcing `{tool, arguments_json}` |
 | `offline` | `offline.py` | Deterministic rules; labelled "not an LLM" |
 

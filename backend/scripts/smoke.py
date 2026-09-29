@@ -8,8 +8,10 @@ Exit code 0 only if every scenario passes.
 
 from __future__ import annotations
 
+import os
 import sys
 import tempfile
+import time
 import uuid
 from pathlib import Path
 
@@ -57,8 +59,12 @@ def main() -> int:
         with chat.db.read() as c:
             return c.execute("SELECT status FROM work_orders WHERE id=?", (wid,)).fetchone()[0]
 
+    # Free tiers allow few requests per minute; pace turns (override with SMOKE_PACE_SECONDS).
+    pace = float(os.environ.get("SMOKE_PACE_SECONDS", "7" if chat.model.provider == "gemini" else "0"))
     failures = 0
-    for msg, check, desc in SCENARIOS:
+    for i, (msg, check, desc) in enumerate(SCENARIOS):
+        if i and pace:
+            time.sleep(pace)
         r = client.post(f"/api/sessions/{sid}/messages", json={"request_id": str(uuid.uuid4()), "message": msg})
         body = r.json()
         ok = r.status_code == 200 and check(body, status_of)
@@ -68,6 +74,10 @@ def main() -> int:
               f"calls={meta.get('model_calls')} {meta.get('latency_ms')}ms")
         if not ok:
             print(f"      reply: {str(body.get('messages', [{}])[-1].get('text', body))[:240]!r}")
+            if body.get("code") == "PROVIDER_UNAVAILABLE" and body.get("retryable") is False:
+                print("\nStopping: the provider rejected the configuration. The model_error log line above has the"
+                      " provider's own message (wrong MODEL_NAME, key or endpoint). See docs/setup.md#troubleshooting.")
+                return 1
     print(f"{len(SCENARIOS) - failures}/{len(SCENARIOS)} passed")
     return 1 if failures else 0
 
