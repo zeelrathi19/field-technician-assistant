@@ -1,4 +1,4 @@
-"""T17 regression tests: guardrail and grounding flaws found in review (29 Sep 2026)."""
+"""Regression tests: guardrail and grounding flaws found in review (29 Sep 2026)."""
 
 import pytest
 

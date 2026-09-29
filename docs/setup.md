@@ -4,7 +4,7 @@
 
 | Mode | Command | Needs | Model |
 |---|---|---|---|
-| Docker (the submission path) | `docker compose up --build` → http://localhost:8000 | Docker | From `.env` (none = offline) |
+| Docker (recommended) | `docker compose up --build` → http://localhost:8000 | Docker | From `.env` (none = offline) |
 | Local | `make setup && make run` → http://127.0.0.1:8000 | [uv](https://docs.astral.sh/uv/), Node 22 | From `.env` |
 | Development | `make dev` → http://localhost:5173 | uv, Node | Backend reloads on save; Vite serves the UI and proxies `/api` |
 

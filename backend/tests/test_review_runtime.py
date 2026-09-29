@@ -1,4 +1,4 @@
-"""T18 regression tests: orchestration, persistence and HTTP reliability flaws found in review."""
+"""Regression tests: orchestration, persistence and HTTP reliability flaws found in review."""
 
 import threading
 import uuid

@@ -20,7 +20,7 @@ For e2e, Chromium comes from `uv run playwright install chromium`, or from `PLAY
 | Intent | `test_intent.py` | Status words; next/advance; negation/how-to; binding; payload grounding |
 | Grounding | `test_grounding.py` | Quotes; unsupported numbers/IDs/statuses; markup; clarify with invented IDs |
 | Scenarios | `test_scenarios.py` | The acceptance list below, through HTTP and the full loop |
-| Review regressions | `test_review_policy.py`, `test_review_runtime.py` | Flaws found in the 29 Sep review (see decision log D53–D56) |
+| Review regressions | `test_review_policy.py`, `test_review_runtime.py` | Flaws found in code review, one test per fix (decision log D53–D56) |
 | HTTP | `test_api.py` | Cookie scoping; Origin; 404/409/413/422; receipts; busy session |
 | Adapters | `test_adapters.py`, `test_adapters_gemini.py` | OpenAI-compatible and Gemini request/response shapes and error mapping; Gemini header auth and thought-signature replay |
 | Browser | `e2e/test_browser.py`, `e2e/test_accessibility.py` | Real UI against the running server |
@@ -60,7 +60,7 @@ Scenario tests use `ScriptedModel` to play a **hostile** model: one that propose
 | Secret scan of tracked files | `make secrets` | clean |
 | Live LLM smoke (Gemini) | `make smoke` | **9/9 passed** live (not scripted): provider `gemini`, model `gemini-3.8-flash`, owner's machine, ~2 s per turn; needed thinking off (D61) |
 
-Latest run: 29 Sep 2026, after D63. The Docker image build is covered by CI on push.
+Latest run: 29 Sep 2026. Backend suite, typecheck, UI build and secret scan re-run after D64 (docs only); e2e and live smoke are from D63, with no code change since. The Docker image build is covered by CI on push.
 
 ## Continuous integration
 
@@ -81,19 +81,6 @@ GitHub Actions on the private repo `zeelrathi19/field-technician-assistant`. Eac
 | R9 repo with backend + frontend | Private GitHub repo |
 | R10 one command, README, key in env | `docker compose build` green in CI; `.env.example`; README |
 | R11 AI disclosure | `AI_USAGE.md` |
-
-## Review findings fixed (29 Sep 2026)
-
-| # | Flaw | Fix | Regression test |
-|---|---|---|---|
-| 1 | "WO-003 is Completed" passed because *another* order was Completed | Per-order status claims | `test_status_claim_must_match_that_order` |
-| 2 | The model could say "I've marked WO-003 complete" in a turn with no write | Action claims rejected | `test_action_claims_without_a_write_rejected`, `test_action_claim_end_to_end_not_shown` |
-| 3 | Asset codes like CU-9999 skipped provenance | Asset-code check | `test_unknown_asset_code_rejected` |
-| 4 | "Complete WO-003, never mind the note" was blocked | Negation scoped to the requested action | `test_negation_only_blocks_the_negated_action` |
-| 5 | Oversized bodies were parsed before rejection | 64 KB ASGI limit | `test_oversized_body_rejected_before_parsing` |
-| 6 | `/api/typo` returned the SPA page with 200 | JSON 404 | `test_unknown_api_path_is_404_json_not_the_spa` |
-| 7 | The per-session lock map grew forever, with a possible race on cleanup | Guarded acquire/release/remove | `test_session_locks_do_not_leak`, `test_concurrent_distinct_messages_in_one_session_one_wins` |
-| 8 | Two text/background pairs were below 4.5:1 contrast | Darker amber/green | `test_axe_clean_light_and_dark` |
 
 ## Still open
 
