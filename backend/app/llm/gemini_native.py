@@ -10,6 +10,12 @@ route works with both `AQ.` and legacy `AIza` keys.
 * Schemas are sent in the OpenAPI subset Gemini's `parameters` field accepts
   (no `additionalProperties`/`pattern`). The server still validates every call with
   the strict Pydantic models, so nothing is loosened where it matters.
+* Thinking is switched off in code (`THINKING_BUDGET = 0`), never via `.env` or the prompt:
+  tool picking is checked deterministically server-side, so the model does not need to
+  reason at length. Gemini counts thought tokens against `maxOutputTokens`, and some 3.x
+  flash models still think a little at budget 0 (~200 tokens seen on gemini-3.8-flash).
+  A fixed `THINKING_HEADROOM` is added so `max_output_tokens` stays the reply budget; without
+  it a 1024 budget left ~40 tokens for the call and live runs hit MALFORMED_FUNCTION_CALL.
 * Thought signatures and part metadata the API returns are kept inside this adapter
   and replayed on the follow-up request, as Gemini requires for multi-step tool use.
 """
@@ -29,6 +35,8 @@ from .errors import redact
 
 DEFAULT_BASE = "https://generativelanguage.googleapis.com/v1beta"
 _DROP = {"additionalProperties", "pattern", "$schema"}
+THINKING_BUDGET = 0  # thinking off; the lowest value every Gemini flash model accepts
+THINKING_HEADROOM = 512  # tokens reserved for residual thinking on top of max_output_tokens
 
 
 def to_gemini_schema(schema: Any) -> Any:
@@ -109,7 +117,8 @@ class GeminiClient:
                 {"name": t["name"], "description": t["description"], "parameters": to_gemini_schema(t["parameters"])}
                 for t in tools]}],
             "toolConfig": {"functionCallingConfig": {"mode": "ANY", "allowedFunctionNames": [t["name"] for t in tools]}},
-            "generationConfig": {"maxOutputTokens": max_output_tokens},
+            "generationConfig": {"maxOutputTokens": max_output_tokens + THINKING_HEADROOM,
+                                 "thinkingConfig": {"thinkingBudget": THINKING_BUDGET}},
         }
         if self.temperature is not None:
             body["generationConfig"]["temperature"] = self.temperature

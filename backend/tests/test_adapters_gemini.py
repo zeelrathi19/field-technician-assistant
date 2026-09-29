@@ -8,7 +8,7 @@ import pytest
 
 from app.config import Settings
 from app.llm.base import ModelError, ModelMessage, ToolCall
-from app.llm.gemini_native import GeminiClient, to_gemini_schema
+from app.llm.gemini_native import THINKING_BUDGET, THINKING_HEADROOM, GeminiClient, to_gemini_schema
 from app.tools import tool_specs
 from tests.harness import Harness
 
@@ -56,7 +56,7 @@ def test_request_shape_and_header_auth():
     assert body["toolConfig"]["functionCallingConfig"]["allowedFunctionNames"] == [t["name"] for t in tool_specs()]
     decls = body["tools"][0]["functionDeclarations"]
     assert "additionalProperties" not in json.dumps(decls) and "pattern" not in json.dumps(decls)
-    assert body["generationConfig"]["maxOutputTokens"] == 512
+    assert body["generationConfig"]["maxOutputTokens"] == 512 + THINKING_HEADROOM
     assert d.tool_calls[0].name == "respond" and d.usage.input_tokens == 1200
 
 
@@ -126,3 +126,15 @@ def test_full_pipeline_with_recorded_gemini_responses(tmp_path):
     done = h.say("Mark it complete")
     assert done["outcome"] == "acted" and h.status("WO-003") == "Completed"
     assert all(r["headers"]["x-goog-api-key"] == KEY for r in seen)
+
+
+def test_thinking_is_off_and_cannot_eat_the_reply_budget():
+    # Gemini 3.x flash thinks by default, and thought tokens count against maxOutputTokens:
+    # a 1024 budget left ~40 tokens for the call and produced MALFORMED_FUNCTION_CALL live.
+    seen: list = []
+    c = GeminiClient("gemini-3.8-flash", KEY, http_client=mock([(200, fc_response("respond", {}))], seen))
+    c.generate("S", HISTORY[:1], tool_specs(), max_output_tokens=1024, timeout=5)
+    gen = seen[0]["body"]["generationConfig"]
+    assert THINKING_BUDGET == 0
+    assert gen["thinkingConfig"] == {"thinkingBudget": 0}
+    assert gen["maxOutputTokens"] == 1024 + THINKING_HEADROOM and THINKING_HEADROOM > 0
