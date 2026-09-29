@@ -9,6 +9,10 @@ A chat assistant for field-service technicians, with a guardrailed LLM at its co
 Open → In Progress → On Hold → Completed     one step at a time · own orders only · one change per message
 ```
 
+![The chat screen on first start: suggested prompts on the left, the technician's own work orders on the right](docs/images/screenshot.png)
+
+*First start, in offline mode. The chat (left) offers example prompts. The panel (right) lists only the signed-in technician's work orders, read straight from the database, with the next allowed status for each. The header badge shows which model is answering.*
+
 **Stack:** Python 3.10+ / FastAPI · React 19 + TypeScript (Vite) · SQLite · Gemini, any OpenAI-compatible API (OpenAI, Groq, OpenRouter, Ollama…), or a keyless offline mode.
 
 ## Prerequisites
