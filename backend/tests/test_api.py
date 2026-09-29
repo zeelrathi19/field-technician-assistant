@@ -84,5 +84,5 @@ def test_missing_key_fails_startup():
     with pytest.raises(ValueError):
         Settings(model_provider="openai", model_name="some-model", model_api_key="")
     with pytest.raises(ValueError):
-        Settings(model_provider="anthropic", model_name="", model_api_key="k")
+        Settings(model_provider="gemini", model_name="", model_api_key="k")
     Settings(model_provider="openai", model_name="llama3.1", model_base_url="http://localhost:11434/v1")

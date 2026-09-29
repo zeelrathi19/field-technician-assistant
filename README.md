@@ -9,7 +9,7 @@ A chat assistant for field-service technicians. It does two things:
 Open → In Progress → On Hold → Completed      one step at a time · only your own orders · one change per message
 ```
 
-Python 3.10+ / FastAPI · React + TypeScript · SQLite · OpenAI-compatible, Anthropic, Gemini, or your local Codex login.
+Python 3.10+ / FastAPI · React + TypeScript · SQLite · Gemini or any OpenAI-compatible API (OpenAI, Groq, OpenRouter, Ollama…).
 
 ## Quick start
 
@@ -18,8 +18,6 @@ docker compose up --build        # → http://localhost:8000
 ```
 
 With no `.env` file the app runs in **offline mode**. A deterministic stand-in replaces the model so you can click through the whole flow, and the UI labels it "not an LLM". To use a real model, copy `.env.example` to `.env`, uncomment one provider block, and restart. Details: [docs/setup.md](docs/setup.md).
-
-No API key but you use Codex? `make setup && make run-codex` uses your ChatGPT login through the local Codex CLI (runs outside Docker).
 
 ## Using it
 
@@ -41,10 +39,10 @@ The right-hand panel lists your work orders straight from the database. Full wal
 
 ```sh
 make setup     # uv + npm ci
-make test      # 258 backend + agentctl tests: rules, tools, 50+ acceptance scenarios, API, adapters (no key needed)
+make test      # 236 backend tests: rules, tools, 50+ acceptance scenarios, API, adapters (no key needed)
 make e2e       # browser flow + WCAG 2.1 AA audit (Playwright)
-make check     # test + typecheck + secret scan + workspace doctor
-make smoke     # live LLM smoke with your .env provider (or: make smoke-codex)
+make check     # test + typecheck + secret scan
+make smoke     # live LLM smoke with your .env provider
 ```
 
 CI (GitHub Actions) runs `make check`, `make e2e` and `docker compose build` on every push.
@@ -58,8 +56,8 @@ CI (GitHub Actions) runs `make check`, `make e2e` and `docker compose build` on 
 | How it works | [docs/architecture.md](docs/architecture.md) · [interactive guide](docs/architecture-guide.html) (open in a browser) |
 | Safety rules and where they're enforced | [docs/guardrails.md](docs/guardrails.md) |
 | HTTP API, tools, configuration reference | [docs/api.md](docs/api.md) |
-| Tests and evidence | [docs/testing.md](docs/testing.md) · [docs/validation.md](docs/validation.md) · [docs/accessibility.md](docs/accessibility.md) |
-| Contributing (humans and AI agents) | [docs/development.md](docs/development.md) · [AGENTS.md](AGENTS.md) |
+| Tests, evidence, accessibility | [docs/testing.md](docs/testing.md) |
+| Contributing (humans and AI agents) | [AGENTS.md](AGENTS.md) |
 | Why it's built this way | [DECISIONS.md](DECISIONS.md) · [docs/decision-log.md](docs/decision-log.md) |
 | AI assistance disclosure | [AI_USAGE.md](AI_USAGE.md) |
 
@@ -70,15 +68,14 @@ backend/     FastAPI app (app/), tests (tests/), live smoke script (scripts/)
 frontend/    React + TypeScript chat UI (src/)
 e2e/         Playwright browser + accessibility tests
 inputs/      knowledge.md, work_orders.json (immutable seed), checksums.json
-docs/        documentation; docs/archive/ holds the original pre-build plan
-tools/       agentctl (multi-agent coordination), secret scan, git hooks, publish/email scripts
-.agents/     shared task board, handoffs and learnings for coding agents
+docs/        documentation
+tools/       secret scan
 ```
 
 ## Status and limits
 
-- Built, tested, and pushed to a private GitHub repo with CI passing. Evidence: [docs/validation.md](docs/validation.md).
+- Built, tested, and pushed to a private GitHub repo with CI passing. Evidence: [docs/testing.md](docs/testing.md).
 - **Identity:** the logged-in technician is the fixture's `currentUser` (Ravi Kumar). Add real authentication before anyone else can reach the app.
 - **Escalation** is recorded and flagged. Nobody is emailed or notified.
 - **Citations** prove where a fact came from, not that the section is relevant. Relevance is covered by adversarial tests.
-- **Live model behaviour** needs `make smoke` or `make smoke-codex` with your credentials. The offline suite doesn't prove it.
+- **Live model behaviour** needs `make smoke` with your credentials. The offline suite doesn't prove it.
