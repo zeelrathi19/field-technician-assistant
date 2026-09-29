@@ -8,10 +8,11 @@
 | 29 Sep 2026 | Claude | Took over those tasks: found and fixed seven guardrail/runtime flaws with regression tests (D53–D56), ran a WCAG 2.1 AA audit, added the native Gemini adapter (D59) and rewrote the docs. |
 | 29 Sep 2026 | Claude (Cowork) | Cut to essentials (D60): removed the multi-agent tooling, archived plan, and Anthropic/Codex adapters; merged docs; re-ran the suites. |
 | 29 Sep 2026 | Claude (Cowork) | Live Gemini fixes found during `make smoke` (D61–D63); submission cleanup of the docs (D64). |
+| 29 Sep 2026 | Claude (Cowork) | One-call plain lookups (D65), Gemini thinking fallback for reviewer keys (D66), final review and a punctuation fix in the "not covered" line. |
 
 Three design points differ from the plan: consistency checks instead of a command grammar, verified quoting instead of verbatim-only answers, and a multi-provider model layer. They are explained in `docs/decision-log.md`.
 
-Commits are authored as Zeel Rathi. AI co-authorship is recorded in commit trailers.
+Commits are authored as Zeel Rathi; the AI assistance is disclosed in this file.
 
 **Verification actually performed** (details in `docs/testing.md`):
 - the automated suites;
@@ -22,5 +23,3 @@ Commits are authored as Zeel Rathi. AI co-authorship is recorded in commit trail
 - a live `make smoke` on Gemini (`gemini-3.8-flash`, 9/9), run on the owner's machine.
 
 The offline heuristic model is a test double, not evidence of LLM quality; live behaviour rests on the smoke run above.
-
-Human review is still expected before submission, especially of `DECISIONS.md`.
