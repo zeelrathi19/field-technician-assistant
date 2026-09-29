@@ -6,7 +6,7 @@ Every material decision, with the reasoning, the alternative that was rejected a
 |---|---|
 | D01–D40 | Original design (28 Sep 2026, before code). Rows marked ~~superseded~~ were replaced later. |
 | D41–D52 | Implementation (29 Sep 2026) |
-| D53–D58 | Review, Codex provider, documentation (29 Sep 2026) |
+| D53–D59 | Review, Codex/Gemini providers, documentation (29 Sep 2026) |
 
 Summaries and tradeoffs only, never reasoning transcripts.
 
@@ -108,3 +108,4 @@ These supersede earlier IDs where noted. Evidence = test names in `backend/tests
 | D56 | 64 KB ASGI body limit; `/api/*` misses return JSON 404; session locks acquired/released under one guard and removed | Oversized bodies were parsed; API typos returned the SPA; the lock map grew without bound | — | `test_review_runtime.py` |
 | D57 | `MODEL_PROVIDER=codex`: one `codex exec` per model step, read-only sandbox, empty temp dir, `--ephemeral`, output schema forcing `{tool, arguments_json}` | Lets the owner test with a real LLM through a ChatGPT login, no API key | Slow (a process per step), local only, output parsed from the CLI; same server checks apply | `test_codex.py` incl. full pipeline through a fake binary |
 | D58 | Agent config reduced to `AGENTS.md` + one-line `CLAUDE.md`; other tools' configs generated on demand (`agentctl adapters`); pre-build docs moved to `docs/archive/`; hooks in `tools/githooks` | AGENTS.md is read natively by most agents; eight pointer files and dot-folders were clutter nobody used | Gemini/Aider/Cline users run one command | `test_adapters_add_and_remove_on_demand`, `agentctl doctor` |
+| D59 | Native Gemini adapter (`MODEL_PROVIDER=gemini`): `generateContent`, `x-goog-api-key`, mode ANY, OpenAPI-subset schemas, thought signatures kept in the adapter. Provider error messages (redacted) now reach the operator log. | The owner's AI Studio key uses the new `AQ.` format, which fails on the OpenAI-compatible Bearer route. The first live smoke test failed with an opaque `NotFoundError`. | Two ways to reach Gemini; the OpenAI-compatible route stays for `AIza` keys | `test_adapters_gemini.py`; a live run by the owner is still pending (the build sandbox can't reach Google) |

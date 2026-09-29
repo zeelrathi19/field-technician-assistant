@@ -9,7 +9,7 @@ A chat assistant for field-service technicians. It does two things:
 Open → In Progress → On Hold → Completed      one step at a time · only your own orders · one change per message
 ```
 
-Python 3.10+ / FastAPI · React + TypeScript · SQLite · OpenAI-compatible, Anthropic, or your local Codex login.
+Python 3.10+ / FastAPI · React + TypeScript · SQLite · OpenAI-compatible, Anthropic, Gemini, or your local Codex login.
 
 ## Quick start
 
@@ -41,7 +41,7 @@ The right-hand panel lists your work orders straight from the database. Full wal
 
 ```sh
 make setup     # uv + npm ci
-make test      # 245 backend + agentctl tests: rules, tools, 50+ acceptance scenarios, API, adapters (no key needed)
+make test      # 258 backend + agentctl tests: rules, tools, 50+ acceptance scenarios, API, adapters (no key needed)
 make e2e       # browser flow + WCAG 2.1 AA audit (Playwright)
 make check     # test + typecheck + secret scan + workspace doctor
 make smoke     # live LLM smoke with your .env provider (or: make smoke-codex)

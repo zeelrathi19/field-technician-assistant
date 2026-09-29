@@ -6,7 +6,7 @@ This page lists commands that were actually run and the results they produced. N
 
 | Check | Command | Result |
 |---|---|---|
-| Backend: domain, service, tools, knowledge, intent, grounding, 50+ scenarios, review regressions, API, adapters, Codex provider | `make test` (part 1) | **235 passed** |
+| Backend: domain, service, tools, knowledge, intent, grounding, 50+ scenarios, review regressions, API, adapters (OpenAI, Anthropic, Gemini), Codex provider | `make test` (part 1) | **248 passed** |
 | agentctl: claims across worktrees, overlap, deps, stale takeover, check-paths, adapters, CLAUDE.md import | `make test` (part 2) | **10 passed** |
 | Browser: demo flow, reload persistence, mobile reflow, axe WCAG 2.1 AA (light, dark, mobile), keyboard | `make e2e` | **5 passed**, 0 axe violations |
 | TypeScript typecheck + production build | `make typecheck`, `make build-ui` | pass |
@@ -51,7 +51,7 @@ GitHub Actions on the private repo `zeelrathi19/field-technician-assistant`, run
 
 ## Still open
 
-1. **Live LLM behaviour.** No provider key or Codex CLI was available where the build ran. Adapters are verified against recorded request/response shapes, and the Codex adapter through a fake binary. Run `make smoke` (API key) or `make smoke-codex` (ChatGPT login) and record the result here with model and date. This is board task T10.
+1. **Live LLM behaviour.** The first live attempt (owner's Gemini `AQ.` key over the OpenAI-compatible route) failed with `NotFoundError`; the native adapter (D59) was built for it. The build sandbox and the linked VM cannot reach `generativelanguage.googleapis.com` (egress policy), so the owner has to run it. No provider key or Codex CLI was available where the build ran. Adapters are verified against recorded request/response shapes, and the Codex adapter through a fake binary. Run `make smoke` (API key) or `make smoke-codex` (ChatGPT login) and record the result here with model and date. This is board task T10.
 2. **`docker compose up` smoke on the owner's machine.** The image build is verified in CI; the container runtime health check has not been observed end to end.
 
 ## Known limits (by design)

@@ -1,17 +1,17 @@
 ---
 id: T11
-title: Native Gemini adapter (google-genai)
-status: todo
+title: Native Gemini adapter (AI Studio AQ. keys)
+status: done
 priority: P2
-owner: 
+owner: claude-opus
 depends_on: [T04]
-paths: [backend/app/llm/gemini_native.py, backend/app/llm/factory.py, backend/tests/test_adapters_gemini.py]
+paths: [backend/app/llm/gemini_native.py, backend/app/llm/factory.py, backend/app/llm/errors.py, backend/app/llm/openai_compat.py, backend/app/llm/anthropic_native.py, backend/app/config.py, backend/scripts/**, backend/tests/test_adapters_gemini.py, .env.example, .gitignore, docs/**, README.md]
 ---
 
 ## Goal
 Optional native adapter (function calling mode ANY) alongside the OpenAI-compatible path.
 
 ## Acceptance
-- [ ] wire-shape tests
-- [ ] factory branch + Settings literal
-- [ ] `make check` passes
+- [x] wire-shape tests
+- [x] factory branch + Settings literal
+- [x] `make check` passes

@@ -15,6 +15,7 @@ import httpx
 import openai
 
 from .base import ModelDecision, ModelError, ModelMessage, ModelUsage, ToolCall
+from .errors import detail
 
 
 class OpenAICompatClient:
@@ -81,12 +82,12 @@ class OpenAICompatClient:
             resp = self._client.chat.completions.create(**kwargs)
         except (openai.APITimeoutError, openai.APIConnectionError, openai.RateLimitError,
                 openai.InternalServerError) as exc:
-            raise ModelError(f"{type(exc).__name__}", transient=True) from exc
+            raise ModelError(f"{type(exc).__name__} ({detail(exc)})", transient=True) from exc
         except openai.AuthenticationError as exc:
-            raise ModelError("provider authentication failed (check MODEL_API_KEY)", transient=False, kind="config") from exc
+            raise ModelError(f"provider authentication failed, check MODEL_API_KEY ({detail(exc)})", transient=False, kind="config") from exc
         except (openai.BadRequestError, openai.NotFoundError, openai.PermissionDeniedError,
                 openai.UnprocessableEntityError) as exc:
-            raise ModelError(f"provider rejected request: {type(exc).__name__}", transient=False, kind="config") from exc
+            raise ModelError(f"provider rejected request: {type(exc).__name__} ({detail(exc)})", transient=False, kind="config") from exc
         except openai.APIError as exc:
             raise ModelError(f"{type(exc).__name__}", transient=False) from exc
         if not resp.choices:
